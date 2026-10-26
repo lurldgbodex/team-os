@@ -1,0 +1,7 @@
+{
+  "id": "deny-cdk-deploy",
+  "type": "deny",
+  "rule": "Bash(cdk deploy:*)",
+  "why": "Infrastructure deploys run in CI with review, never from a laptop session.",
+  "owner": "devops"
+}

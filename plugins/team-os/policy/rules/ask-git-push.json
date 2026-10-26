@@ -1,0 +1,7 @@
+{
+  "id": "ask-git-push",
+  "type": "ask",
+  "rule": "Bash(git push:*)",
+  "why": "Pushing publishes work to the shared remote. Confirm the branch and remote first.",
+  "owner": "platform"
+}

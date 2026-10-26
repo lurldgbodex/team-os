@@ -1,0 +1,4 @@
+# Personal notes never live in this repo
+personal/
+.DS_Store
+*.log

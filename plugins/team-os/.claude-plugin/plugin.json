@@ -1,0 +1,9 @@
+{
+  "name": "team-os",
+  "version": "0.1.0",
+  "description": "Team OS: shared subagents, workflow skills, hooks, guardrails and knowledge for every engineer on the team.",
+  "author": {
+    "name": "Platform Engineering"
+  },
+  "keywords": ["team", "guardrails", "knowledge", "workflow"]
+}

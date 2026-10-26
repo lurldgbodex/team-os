@@ -1,0 +1,7 @@
+{
+  "id": "deny-read-env",
+  "type": "deny",
+  "rule": "Read(**/.env)",
+  "why": "Environment files hold secrets. Ask the engineer for the specific non-secret values needed.",
+  "owner": "security"
+}

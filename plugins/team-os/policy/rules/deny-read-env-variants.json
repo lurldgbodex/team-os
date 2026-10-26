@@ -1,0 +1,7 @@
+{
+  "id": "deny-read-env-variants",
+  "type": "deny",
+  "rule": "Read(**/.env.*)",
+  "why": "Variants such as .env.production also hold secrets.",
+  "owner": "security"
+}

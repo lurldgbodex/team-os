@@ -1,0 +1,7 @@
+{
+  "id": "ask-git-reset-hard",
+  "type": "ask",
+  "rule": "Bash(git reset --hard:*)",
+  "why": "A hard reset discards uncommitted work. Confirm with the engineer first.",
+  "owner": "platform"
+}

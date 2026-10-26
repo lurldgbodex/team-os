@@ -1,0 +1,16 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "teamdata",
+  "description": "Team OS: one plugin that gives every engineer the same Claude Code agents, workflows, guardrails and shared knowledge.",
+  "owner": {
+    "name": "Platform Engineering"
+  },
+  "plugins": [
+    {
+      "name": "team-os",
+      "source": "./plugins/team-os",
+      "description": "Shared subagents, workflows, hooks, guardrails and knowledge bundle for the team.",
+      "version": "0.1.0"
+    }
+  ]
+}
