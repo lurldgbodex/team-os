@@ -5,6 +5,10 @@ Read this file first. Open only the documents that match the question.
 | Document | Read it when |
 |---|---|
 | `standards.md` | Writing or reviewing code, naming things, writing tests, committing, opening PRs |
+| `standards-go.md` | Questions about Go standards, or writing or reviewing Go code (repo has `go.mod`). Read with `standards.md` |
+| `standards-flutter.md` | Questions about Flutter standards, or writing or reviewing Flutter code (repo has `pubspec.yaml` with a `flutter` dependency). Read with `standards.md` |
+| `standards-java.md` | Questions about Java standards, or writing or reviewing Java code (repo root has `pom.xml` or `build.gradle(.kts)` with `src/main/java`). Read with `standards.md` |
+| `standards-typescript.md` | Questions about TypeScript standards, or writing or reviewing TypeScript code (repo has `tsconfig.json` or `typescript` in `package.json`). Read with `standards.md` |
 | `example-service.md` | You need a model of what a project knowledge page should contain (replace with your real projects) |
 | `team-os.md` | Questions about how Team OS itself works: agents, hooks, rules, updates |
 

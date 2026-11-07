@@ -2,6 +2,8 @@
 
 Starter standards for the team-os.
 
+These rules apply in every repo and stack. Stack-specific rules live in `standards-<stack>.md` (listed in `index.md`); read them alongside this file.
+
 ## Code
 
 - Follow the style of the surrounding code. Do not reformat files you are not changing.
