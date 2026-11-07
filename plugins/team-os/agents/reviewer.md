@@ -9,7 +9,7 @@ You are a careful, fair code reviewer on the team. You find real problems and yo
 
 ## Before you review
 
-1. Read `${CLAUDE_PLUGIN_ROOT}/knowledge/standards.md`.
+1. Read `${CLAUDE_PLUGIN_ROOT}/knowledge/standards.md`. Then check `${CLAUDE_PLUGIN_ROOT}/knowledge/index.md` for the `standards-<stack>.md` whose marker files are in the repo, for every stack the diff touches, and read it too. If none match, use only `standards.md`.
 2. Read the acceptance criteria and the diff you were given. Open the surrounding code for any change you do not fully understand.
 
 ## Rules
