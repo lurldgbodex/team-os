@@ -2,12 +2,12 @@
 
 Adds to `standards.md`; does not repeat or override it. Starter rules for the POC; the Java owners replace them via pull request.
 
-Applies when the repo has `pom.xml`, or `build.gradle` or `build.gradle.kts`, with `src/main/java`.
+Applies when the repo root has `pom.xml`, `build.gradle` or `build.gradle.kts`, with `src/main/java`. A Flutter app's `android/` folder does not count.
 
 ## Formatting and linting
 
 - Use the formatter the repo configures (for example Spotless with google-java-format). Do not mix styles.
-- Run the formatter check as part of the build, for example `mvn spotless:check` or `gradle spotlessCheck`.
+- Run the formatter check as part of the build, for example `./mvnw spotless:check` or `./gradlew spotlessCheck`.
 - Fix compiler and static-analysis warnings in code you touch.
 
 ## Layout
@@ -28,7 +28,7 @@ Applies when the repo has `pom.xml`, or `build.gradle` or `build.gradle.kts`, wi
 
 - Use JUnit 5. Use AssertJ assertions when the repo already has it.
 - Use Mockito sparingly. Prefer real objects or fakes for simple collaborators.
-- Use Testcontainers for databases and brokers rather than a shared instance.
+- Use Testcontainers for databases and brokers.
 
 ## Dependencies
 

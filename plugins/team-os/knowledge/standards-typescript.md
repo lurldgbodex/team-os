@@ -27,8 +27,8 @@ Applies when the repo has `tsconfig.json`, or `typescript` in `package.json`.
 ## Testing
 
 - Use the repo's runner (Vitest or Jest). Do not add a second one.
-- Use fake timers instead of real waits or sleeps.
-- Mock `fetch` or the HTTP client at the boundary. Do not hit real endpoints.
+- Use the runner's fake timers (`vi.useFakeTimers()` or `jest.useFakeTimers()`).
+- Mock `fetch` or the HTTP client at the boundary.
 - Test types that matter (for example public API shapes) with the compiler, not casts.
 
 ## Dependencies

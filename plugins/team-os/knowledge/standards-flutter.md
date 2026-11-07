@@ -22,16 +22,16 @@ Applies when the repo has a `pubspec.yaml` with a `flutter` dependency.
 
 - Never leave a `Future` unawaited. If it is intentional, wrap it in `unawaited()` and say why.
 - Surface failures as explicit UI states (loading, error, empty, data). Do not leave the screen blank or spinning.
-- Do not use `BuildContext` after an `await` without checking `mounted`.
+- Do not use `BuildContext` after an `await` without checking `mounted` (or `context.mounted` outside a `State`).
 
 ## Testing
 
 - Cover UI with widget tests. Use `pumpAndSettle` sparingly and prefer explicit `pump` durations.
 - Add golden tests only for stable, self-contained widgets. Pin the font and device size.
-- Mock platform channels with `TestDefaultBinaryMessengerBinding`. Do not call real plugins in tests.
+- Mock platform channels with `TestDefaultBinaryMessengerBinding`.
 
 ## Dependencies
 
-- Pin versions in `pubspec.yaml`. Avoid `any`.
+- Use caret constraints (`^x.y.z`) in `pubspec.yaml`, never `any`. The committed lockfile gives reproducible builds.
 - Commit `pubspec.lock` for apps. Do not commit it for packages.
 - Run `flutter pub upgrade` deliberately, in its own pull request.

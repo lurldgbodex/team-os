@@ -29,7 +29,7 @@ Applies when the repo has `go.mod`.
 - Use table-driven tests with `t.Run` subtests. Call `t.Helper()` in test helpers.
 - Use `t.TempDir()` and `t.Setenv()` instead of touching real paths or the real environment.
 - Use `httptest` for HTTP clients and servers. Inject a clock or a fake instead of calling `time.Now` directly.
-- CI runs `go test -race ./...`.
+- Run tests with the race detector: `go test -race ./...`.
 
 ## Dependencies
 
