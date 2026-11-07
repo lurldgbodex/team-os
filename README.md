@@ -10,7 +10,10 @@ One install gives every engineer the same Claude Code toolkit: shared subagents,
 |---|---|---|
 | Subagent | `team-os:librarian` | Reads the shared knowledge and your personal notes before anyone digs through code (Haiku) |
 | Subagent | `team-os:coder` | Writes scoped code following team standards (Sonnet) |
-| Skill | `/team-os:implement-ticket PROJ-123` | Ticket → plan → code → tests → draft PR → self-review |
+| Subagent | `team-os:reviewer` | Read-only code reviewer: correctness, security, tests, scope (Sonnet) |
+| Skill | `/team-os:create-ticket <description>` | Rough idea → GitHub issue with acceptance criteria, created after you approve |
+| Skill | `/team-os:implement-ticket 42` | Issue → plan → code → tests → draft PR that closes it → self-review |
+| Skill | `/team-os:review-pr 57` | PR + linked issue → findings by severity → optional posted review |
 | Skill | `/team-os:setup` | Post-install check and one-minute tour. Safe to re-run |
 | Hook | session start | Prints `Team OS · <version>` and warns when your checkout is behind |
 | Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access |
@@ -44,9 +47,11 @@ Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh 
 ## After installing
 
 - Ask anything about a project. The `librarian` reads the shared knowledge first.
-- `/team-os:implement-ticket PROJ-123` takes a ticket to a draft pull request.
+- `/team-os:create-ticket add FX rate caching` drafts a GitHub issue and creates it once you approve.
+- `/team-os:implement-ticket 42` takes issue #42 to a draft pull request that closes it.
+- `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
 - Try asking Claude to read `.env`: the guard blocks it and says why.
-- Connectors used by the workflow: Atlassian (Jira) and GitHub. Connect them at claude.ai/settings/connectors, then run `/mcp`.
+- Tickets are GitHub Issues. The GitHub connector is optional (connect it at claude.ai/settings/connectors, then run `/mcp`); without it the skills use the `gh` CLI.
 
 ## Updating
 
@@ -79,8 +84,8 @@ install.sh / uninstall.sh / update.sh   thin entry points
 .claude-plugin/marketplace.json         the "teamdata" marketplace: one plugin, team-os
 plugins/team-os/
   .claude-plugin/plugin.json            plugin manifest
-  agents/                               librarian, coder
-  skills/                               implement-ticket, setup
+  agents/                               librarian, coder, reviewer
+  skills/                               create-ticket, implement-ticket, review-pr, setup
   hooks/                                hooks.json, session-start.sh, guard.sh, statusline.sh
   knowledge/                            shared knowledge bundle (index.md first)
   policy/                               rules/*.json and behaviour/*.md, one file per rule

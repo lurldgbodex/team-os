@@ -1,6 +1,6 @@
 # Engineering standards
 
-Starter standards for the POC. Replace with your team's real ones via pull request.
+Starter standards for the team-os.
 
 ## Code
 
@@ -17,7 +17,7 @@ Starter standards for the POC. Replace with your team's real ones via pull reque
 
 ## Git
 
-- Branches: `<type>/<ticket-id>-<slug>`, for example `feat/PROJ-123-add-rate-cache`.
+- Branches: `<type>/<issue-number>-<slug>`, for example `feat/123-add-rate-cache`.
 - Commits: Conventional Commits (`feat:`, `fix:`, `docs:`, `refactor:`, `test:`, `chore:`).
 - Open pull requests as **draft** first. Mark ready after self-review.
 - Small pull requests. If a diff needs more than about 400 changed lines, split it.

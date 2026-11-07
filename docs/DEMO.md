@@ -6,8 +6,8 @@ The demo has two halves: **run it** (what it does) and **open the code** (how it
 
 1. Fresh clone on the demo machine (or a clean user account): `git clone <repo> team-os`.
 2. `claude` is installed and logged in; `gh auth login` done; `jq` installed.
-3. Connect Atlassian and GitHub at claude.ai/settings/connectors; check with `/mcp`.
-4. Pick one low-risk Jira ticket and a throwaway repo for step 6. Note the ticket ID.
+3. Connect GitHub at claude.ai/settings/connectors; check with `/mcp` (optional: `gh` is the fallback).
+4. Pick a throwaway repo with GitHub Issues enabled for step 6, and a small open pull request to review.
 5. Put one real fact in `knowledge/example-service.md` (and its row in `index.md`) so step 5 answers from your own project.
 6. Run `bin/test.sh` once so you know it is green.
 7. Have a second clone (or second machine) ready for the update demo in step 7.
@@ -33,10 +33,12 @@ In Claude Code, ask: *"Read the .env file in this folder."* and *"Force push thi
 Ask a question about your project. Show the answer cites `knowledge/<file>.md`.
 Open `knowledge/index.md` (read first, "read it when"), then `agents/librarian.md` (Haiku, read-only on shared, writes only to personal). Show `~/.claude/team-os/personal/`: private, own git repo, secret scan on commit.
 
-## 6. A ticket to a draft PR (5 min) — `/team-os:implement-ticket <ID>`
-Narrate each phase: ticket fetched from Jira, plan shown for approval, `coder` subagent implements, tests run, draft PR opened, self-review checklist.
-Open `skills/implement-ticket/SKILL.md` and `agents/coder.md`. Point out that workflows are just reviewed Markdown.
-Backup if the connector misbehaves: paste the ticket text; the skill continues.
+## 6. Idea to issue to draft PR to review (7 min)
+1. `/team-os:create-ticket <one-line idea>`: the draft issue is shown with acceptance criteria and waits for approval; approve and it is created.
+2. `/team-os:implement-ticket <number>`: issue fetched, plan shown for approval, `coder` subagent implements, tests run, draft PR opened with `Closes #<number>`, self-review.
+3. `/team-os:review-pr <PR number>`: `reviewer` subagent checks the diff against the issue's acceptance criteria; findings by severity; nothing is posted until you say so.
+Open `skills/create-ticket/SKILL.md`, `skills/implement-ticket/SKILL.md`, `skills/review-pr/SKILL.md` and `agents/reviewer.md`. Point out that workflows are just reviewed Markdown.
+Backup if the connector misbehaves: the skills fall back to `gh`; or paste the ticket text.
 
 ## 7. Update without reinstalling (2 min)
 In the second clone: add `policy/rules/deny-<something>.json`, commit, push. In the demo clone: `git pull`. Show the new rule now in `~/.claude/settings.json`. Open `bin/refresh.sh` and the `post-merge` hook. The version in the status line changes.
@@ -59,5 +61,5 @@ Pilot with 3-5 engineers for two weeks. Measure: time to onboard, PRs opened thr
 | `claude plugin ...` subcommand fails | The installer prints the manual `/plugin marketplace add <path>` and `/plugin install team-os@teamdata` commands; run them in Claude Code |
 | Plugin not showing after install | Fully exit and restart Claude Code; run `/plugin` to list |
 | Guard did not fire | Check `/hooks`, confirm the plugin is enabled, restart the session |
-| Jira connector not connected | Paste the ticket text into the chat |
+| GitHub connector not connected | The skills fall back to `gh issue` and `gh pr`; check `gh auth status` |
 | Live demo impossible | Run `bin/test.sh` and walk the code instead; the tests demonstrate every mechanism |

@@ -38,10 +38,11 @@ Only `plugin.json` lives inside `.claude-plugin/`. Agents, skills and hooks sit 
 Markdown files with frontmatter (`name`, `description`, `model`, optional `tools`) and a system prompt.
 - `librarian` runs on **Haiku**: cheap, read-heavy work.
 - `coder` runs on **Sonnet**: writing code.
+- `reviewer` runs on **Sonnet**, read-only (tools limited to Read, Grep, Glob, Bash): reviewing diffs.
 Pinning a model per agent is a cost and quality control, set once for the whole team.
 
 ### 3. Skills (`skills/<name>/SKILL.md`)
-Slash-command workflows. `implement-ticket` is a numbered procedure: ticket → plan → approval → code via `coder` → tests → draft PR → self-review. Skills are plain Markdown, so they are reviewed like any other change.
+Slash-command workflows. Three skills cover the ticket lifecycle on GitHub Issues: `create-ticket` (idea → issue, approval before creating), `implement-ticket` (issue → plan → approval → code via `coder` → tests → draft PR that closes the issue → self-review) and `review-pr` (PR + linked issue → `reviewer` findings → optional posted review, never approve or request changes unasked). Skills are plain Markdown, so they are reviewed like any other change.
 
 ### 4. Hooks (`hooks/hooks.json`)
 Hooks run scripts on Claude Code events, so behaviour does not depend on anyone remembering anything.
