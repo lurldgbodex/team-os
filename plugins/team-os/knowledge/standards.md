@@ -4,6 +4,8 @@ Starter standards for the team-os.
 
 These rules apply in every repo and stack. Stack-specific rules live in `standards-<stack>.md` (listed in `index.md`); read them alongside this file.
 
+When a repo has its own instructions (`CLAUDE.md` or `AGENTS.md` at its root, and the conventions or design docs they name), they win over this file and the stack files where the two conflict. Say so when you hit a conflict; do not silently pick one.
+
 ## Code
 
 - Follow the style of the surrounding code. Do not reformat files you are not changing.

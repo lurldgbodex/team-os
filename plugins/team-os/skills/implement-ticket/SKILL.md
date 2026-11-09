@@ -15,6 +15,7 @@ Follow these steps in order. Stop and ask the engineer if a step cannot be compl
 - Fetch the issue with the GitHub connector (`issue_read`): title, body, labels, comments, linked issues. If the connector is unavailable, use `gh issue view <n> --comments`.
 - If there is no issue (the engineer pasted text or described the work), use that text. Offer to run `/team-os:create-ticket` first so the work is tracked, but carry on if they decline.
 - Ask the `librarian` subagent what the shared knowledge says about the affected project and standards.
+- Read the repo's own instructions (`CLAUDE.md` or `AGENTS.md` at its root, and what they say to read first). They win over the team standards where the two conflict, and they may require work before code (see step 3).
 - Restate the goal and acceptance criteria in three or four lines. If the issue has no acceptance criteria, propose some and get them confirmed.
 
 ## 2. Confirm the base and branch
@@ -27,15 +28,17 @@ Follow these steps in order. Stop and ask the engineer if a step cannot be compl
 
 Write a short plan: files to change, tests to add, risks. Show it to the engineer and wait for approval before coding.
 
+If the repo's instructions require something before code (a design doc, an ADR, a spec change), that comes first: write it, show it, and wait for the engineer's approval before any code. If that work belongs in another repository (for example a shared API spec), say so and stop until it has landed there.
+
 ## 4. Implement
 
-- Delegate each well-scoped step to the `coder` subagent, giving it the plan step and the relevant standards.
+- Delegate each well-scoped step to the `coder` subagent, giving it the plan step, the relevant standards and any approved design doc.
 - Run the project's tests after each step. Fix failures before moving on.
 - Commit with Conventional Commits, referencing the issue, for example `feat(rates): cache FX rates (#42)`.
 
 ## 5. Verify
 
-- Run the full test suite and linter. Report exact results.
+- Run the full test suite and linter, using the commands the repo's instructions name if they name any (for example `make ci`). Report exact results.
 - If something cannot be run, say so. Do not claim it passed.
 
 ## 6. Draft pull request

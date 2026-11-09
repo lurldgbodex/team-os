@@ -18,13 +18,13 @@ This skill is **read-only until the engineer approves posting**. It never approv
 
 ## 2. Review
 
-Delegate the reading to the `reviewer` subagent, giving it the diff, the acceptance criteria and a pointer to `${CLAUDE_PLUGIN_ROOT}/knowledge/standards.md`. It checks, in this order:
+Delegate the reading to the `reviewer` subagent, giving it the diff, the acceptance criteria and pointers to `${CLAUDE_PLUGIN_ROOT}/knowledge/standards.md` and the repo's own instructions (`CLAUDE.md` or `AGENTS.md` at its root). It checks, in this order:
 
 1. **Does it do what the issue asks?** Each acceptance criterion: met, partly met or missing.
 2. **Correctness**: logic errors, edge cases, error handling, concurrency, off-by-one and null cases.
 3. **Security**: secrets, input validation, auth, injection, unsafe deserialisation, logging of sensitive data.
-4. **Tests**: every behaviour change covered, tests that would actually fail if the code were wrong.
-5. **Scope and standards**: only what the issue needs, naming, structure, Conventional Commits, no stray files.
+4. **Tests**: every behaviour change covered, tests that would actually fail if the code were wrong, and a test for every edge case the change's design doc names, if the repo uses them.
+5. **Scope and standards**: only what the issue needs, naming, structure, Conventional Commits, no stray files. The repo's own instructions win over team standards where they conflict, including any design doc or ADR they require before code.
 
 ## 3. Report
 
