@@ -83,12 +83,14 @@ case "$tool" in
 
     # 5. Reading secrets through the shell.
     #    .env files match by whole file name (".env", ".env.<name>"), the same
-    #    as the Read tool rule below, so "config.env" is not caught.
+    #    as the Read tool rule below, so "config.env" is not caught. A name
+    #    starts after whitespace, "/", "=", "," or ":" (so --include=.env and
+    #    "a,.env" count).
     #    ".env.example" is a committed template without secrets: it is taken
     #    out of the command first, so it stays readable but a real .env named
     #    alongside it is still blocked.
-    scan="$(printf '%s' "$cmd" | sed -E 's#(^|[[:space:]/])\.env\.example([[:space:]]|$)#\1\2#g')"
-    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/])?\.env(\.[A-Za-z]+)?([[:space:]]|$)' \
+    scan="$(printf '%s' "$cmd" | sed -E 's#(^|[[:space:]/=,:])\.env\.example([[:space:],:]|$)#\1\2#g')"
+    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/=,:])?\.env(\.[A-Za-z]+)?([[:space:],:]|$)' \
       || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi

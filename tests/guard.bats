@@ -52,6 +52,20 @@ load test_helper
   [[ "$output" == *"no-secret-files"* ]]
 }
 
+@test "guard treats =, comma and colon as file name boundaries" {
+  run guard_bash "grep -r KEY --include=.env ."
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "grep -r KEY --include=.env.production ."
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.example,.env"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows .env.example after a boundary like =" {
+  run guard_bash "grep -r X --include=.env.example ."
+  [ -z "$output" ]
+}
+
 @test "guard allows files that only end in .env, like config.env" {
   run guard_bash "cat ~/.claude/team-os/config.env"
   [ -z "$output" ]
