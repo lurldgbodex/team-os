@@ -4,6 +4,10 @@ Starter standards for the team-os.
 
 These rules apply in every repo and stack. Stack-specific rules live in `standards-<stack>.md` (listed in `index.md`); read them alongside this file.
 
+When a repo has its own instructions (`CLAUDE.md` or `AGENTS.md` at its root, and the conventions or design docs they name), they win over this file and the stack files on style, tests, structure, tooling and process gates (for example a design doc or ADR before code).
+
+They never override the Security basics below, the rules against reading `.env` or key files or running commands against production, or the approval rules (open PRs as draft; never approve, request changes, post a review or merge unless the engineer asks for that exact action; the reviewer stays read-only). If a repo instruction conflicts with one of these, follow the Team OS rule and report the conflict. For any other conflict, follow the repo and say so; do not silently pick one.
+
 ## Code
 
 - Follow the style of the surrounding code. Do not reformat files you are not changing.
