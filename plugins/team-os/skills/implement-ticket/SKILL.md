@@ -15,7 +15,7 @@ Follow these steps in order. Stop and ask the engineer if a step cannot be compl
 - Fetch the issue with the GitHub connector (`issue_read`): title, body, labels, comments, linked issues. If the connector is unavailable, use `gh issue view <n> --comments`.
 - If there is no issue (the engineer pasted text or described the work), use that text. Offer to run `/team-os:create-ticket` first so the work is tracked, but carry on if they decline.
 - Ask the `librarian` subagent what the shared knowledge says about the affected project and standards.
-- Read the repo's own instructions (`CLAUDE.md` or `AGENTS.md` at its root, and what they say to read first). They win over the team standards where the two conflict, and they may require work before code (see step 3).
+- Read the repo's own instructions (`CLAUDE.md` or `AGENTS.md` at its root, and what they say to read first). Apply the precedence rule in `standards.md` where they conflict with the team standards. They may require work before code (see step 3).
 - Restate the goal and acceptance criteria in three or four lines. If the issue has no acceptance criteria, propose some and get them confirmed.
 
 ## 2. Confirm the base and branch
