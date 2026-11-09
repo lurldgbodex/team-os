@@ -24,7 +24,7 @@ Delegate the reading to the `reviewer` subagent, giving it the diff, the accepta
 2. **Correctness**: logic errors, edge cases, error handling, concurrency, off-by-one and null cases.
 3. **Security**: secrets, input validation, auth, injection, unsafe deserialisation, logging of sensitive data.
 4. **Tests**: every behaviour change covered, tests that would actually fail if the code were wrong, and a test for every edge case the change's design doc names, if the repo uses them.
-5. **Scope and standards**: only what the issue needs, naming, structure, Conventional Commits, no stray files. Where the repo's own instructions conflict with team standards, apply the precedence rule in `standards.md`; this includes any design doc or ADR they require before code.
+5. **Scope and standards**: only what the issue needs, naming, structure, Conventional Commits, no stray files. Where the repo's own instructions conflict with team standards, apply the precedence rule in `standards.md` and note the conflict. Separately, check the gates the repo sets: a required design doc or ADR must be in the base branch or the diff, with evidence the engineer approved it.
 
 ## 3. Report
 
