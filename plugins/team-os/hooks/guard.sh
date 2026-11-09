@@ -58,7 +58,14 @@ case "$tool" in
     fi
 
     # 5. Reading secrets through the shell.
-    if printf '%s' "$cmd" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(\.env(\.[A-Za-z]+)?|id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
+    #    .env files match by whole file name (".env", ".env.<name>"), the same
+    #    as the Read tool rule below, so "config.env" is not caught.
+    #    ".env.example" is a committed template without secrets: it is taken
+    #    out of the command first, so it stays readable but a real .env named
+    #    alongside it is still blocked.
+    scan="$(printf '%s' "$cmd" | sed -E 's#(^|[[:space:]/])\.env\.example([[:space:]]|$)#\1\2#g')"
+    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/])?\.env(\.[A-Za-z]+)?([[:space:]]|$)' \
+      || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi
     ;;
@@ -67,6 +74,9 @@ case "$tool" in
     path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
     base="$(basename "$path")"
     case "$base" in
+      .env.example)
+        # Committed template without secrets: readable.
+        ;;
       .env|.env.*|*.pem|id_rsa|id_ed25519|credentials)
         deny "no-secret-files" "reading or editing $base is blocked. It likely contains secrets."
         ;;

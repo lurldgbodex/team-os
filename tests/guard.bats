@@ -35,6 +35,38 @@ load test_helper
   [[ "$output" == *"no-secret-files"* ]]
 }
 
+@test "guard blocks reading a .env variant through the shell" {
+  run guard_bash "cat app/.env.local"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows reading .env.example through the shell" {
+  run guard_bash "cat .env.example"
+  [ -z "$output" ]
+  run guard_bash "head -20 /work/app/.env.example"
+  [ -z "$output" ]
+}
+
+@test "guard still blocks .env when named next to .env.example" {
+  run guard_bash "cat .env.example .env"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows files that only end in .env, like config.env" {
+  run guard_bash "cat ~/.claude/team-os/config.env"
+  [ -z "$output" ]
+}
+
+@test "guard still blocks reading key files through the shell" {
+  run guard_bash "cat ~/.ssh/id_rsa"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows the Read tool on .env.example" {
+  run guard_read "/work/app/.env.example"
+  [ -z "$output" ]
+}
+
 @test "guard allows reading ordinary files" {
   run guard_read "/work/app/src/index.ts"
   [ -z "$output" ]
