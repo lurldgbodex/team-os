@@ -42,7 +42,7 @@ Markdown files with frontmatter (`name`, `description`, `model`, optional `tools
 Pinning a model per agent is a cost and quality control, set once for the whole team.
 
 ### 3. Skills (`skills/<name>/SKILL.md`)
-Slash-command workflows. Three skills cover the ticket lifecycle on GitHub Issues: `create-ticket` (idea → issue, approval before creating), `implement-ticket` (issue → plan → approval → code via `coder` → tests → draft PR that closes the issue → self-review) and `review-pr` (PR + linked issue → `reviewer` findings → optional posted review, never approve or request changes unasked). Skills are plain Markdown, so they are reviewed like any other change.
+Slash-command workflows. Three skills cover the ticket lifecycle on GitHub Issues: `create-ticket` (idea → issue, approval before creating), `implement-ticket` (issue → docs the repo requires before code, if any → plan → approval → code via `coder` → tests → draft PR that closes the issue → self-review) and `review-pr` (PR + linked issue + the repo's own instructions from the base branch → `reviewer` findings → optional posted review, never approve or request changes unasked). Skills are plain Markdown, so they are reviewed like any other change.
 
 ### 4. Hooks (`hooks/hooks.json`)
 Hooks run scripts on Claude Code events, so behaviour does not depend on anyone remembering anything.
@@ -67,6 +67,7 @@ Claude Code pipes session JSON to the script on stdin and shows its output. It p
 
 ### 7. Knowledge (`knowledge/`)
 Shared facts as Markdown. `index.md` says *when to read each file*, so the `librarian` reads the index first and opens only what it needs. Personal notes extend or override the shared bundle.
+A repo's own `CLAUDE.md` or `AGENTS.md` beats the team and stack standards on style, tests, structure, tooling and process gates, but never on security, `.env` and production rules, or approval rules; `standards.md` states the rule.
 
 ### 8. Personal folder (`~/.claude/team-os/personal/`)
 Private to the machine, its own git repo with a pre-commit hook that runs `gitleaks` when installed. Never part of this repo.
