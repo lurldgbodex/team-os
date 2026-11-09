@@ -31,3 +31,8 @@ guard_bash() {
 guard_read() {
   jq -n --arg p "$1" '{tool_name:"Read", tool_input:{file_path:$p}}' | "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
 }
+
+# $1 = path, $2 = optional glob
+guard_grep() {
+  jq -n --arg p "$1" --arg g "${2:-}" '{tool_name:"Grep", tool_input:({pattern:"x", path:$p} + (if $g == "" then {} else {glob:$g} end))}' | "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
+}

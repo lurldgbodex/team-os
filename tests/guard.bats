@@ -72,6 +72,32 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard blocks the Grep tool on a .env file path" {
+  run guard_grep "/w/.env.local"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks the Grep tool with a .env glob" {
+  run guard_grep "/w" ".env*"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_grep "/w" "**/.env.production"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_grep "/w" "*.pem"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows the Grep tool on .env.example" {
+  run guard_grep "/w/.env.example"
+  [ -z "$output" ]
+  run guard_grep "/w" "**/.env.example"
+  [ -z "$output" ]
+}
+
+@test "guard allows the Grep tool on ordinary sources" {
+  run guard_grep "/w/src" "*.ts"
+  [ -z "$output" ]
+}
+
 @test "guard blocks cdk deploy" {
   run guard_bash "cdk deploy MyStack"
   [[ "$output" == *"no-local-deploy"* ]]

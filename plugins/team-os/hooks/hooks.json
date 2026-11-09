@@ -12,7 +12,7 @@
     ],
     "PreToolUse": [
       {
-        "matcher": "Bash|Read|Edit|Write",
+        "matcher": "Bash|Read|Edit|Write|Grep",
         "hooks": [
           {
             "type": "command",

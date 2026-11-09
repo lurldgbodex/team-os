@@ -33,6 +33,30 @@ deny() {
   exit 0
 }
 
+# Is this file name a secret? ".env.example" is a committed template without
+# secrets, so it is readable. Shared by the Read/Edit/Write and Grep rules.
+is_secret_name() {
+  case "$1" in
+    .env.example) return 1 ;;
+    .env|.env.*|*.pem|id_rsa|id_ed25519|credentials) return 0 ;;
+  esac
+  return 1
+}
+
+# Does a Grep glob target a secret file? Globs are checked by their file name
+# part. Each "*" is tried as empty and as a letter, and {a,b} is split, so
+# ".env*" counts as ".env", "*.pem" as "x.pem", and so on.
+glob_targets_secret() {
+  local piece base cand
+  while IFS= read -r piece; do
+    base="${piece##*/}"
+    for cand in "${base//[*?]/}" "${base//[*?]/x}"; do
+      is_secret_name "$cand" && return 0
+    done
+  done < <(printf '%s\n' "$1" | tr '{},' '\n\n\n')
+  return 1
+}
+
 case "$tool" in
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
@@ -73,14 +97,24 @@ case "$tool" in
   Read|Edit|Write)
     path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
     base="$(basename "$path")"
-    case "$base" in
-      .env.example)
-        # Committed template without secrets: readable.
-        ;;
-      .env|.env.*|*.pem|id_rsa|id_ed25519|credentials)
-        deny "no-secret-files" "reading or editing $base is blocked. It likely contains secrets."
-        ;;
-    esac
+    if is_secret_name "$base"; then
+      deny "no-secret-files" "reading or editing $base is blocked. It likely contains secrets."
+    fi
+    ;;
+
+  Grep)
+    # Glob is deliberately not in the hooks.json matcher: it only lists file
+    # names and never reads contents. Grep reads contents, so it is covered.
+    # A Grep over a whole directory with no glob can still reach .env files
+    # unless ripgrep skips them (for example through .gitignore).
+    path="$(printf '%s' "$input" | jq -r '.tool_input.path // empty')"
+    glob="$(printf '%s' "$input" | jq -r '.tool_input.glob // empty')"
+    if [ -n "$path" ] && is_secret_name "$(basename "$path")"; then
+      deny "no-secret-files" "searching $(basename "$path") is blocked. It likely contains secrets."
+    fi
+    if [ -n "$glob" ] && glob_targets_secret "$glob"; then
+      deny "no-secret-files" "searching files matching '$glob' is blocked. It would read secrets."
+    fi
     ;;
 esac
 
