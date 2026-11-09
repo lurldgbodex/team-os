@@ -35,8 +35,101 @@ load test_helper
   [[ "$output" == *"no-secret-files"* ]]
 }
 
+@test "guard blocks reading a .env variant through the shell" {
+  run guard_bash "cat app/.env.local"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows reading .env.example through the shell" {
+  run guard_bash "cat .env.example"
+  [ -z "$output" ]
+  run guard_bash "head -20 /work/app/.env.example"
+  [ -z "$output" ]
+}
+
+@test "guard still blocks .env when named next to .env.example" {
+  run guard_bash "cat .env.example .env"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard treats =, comma and colon as file name boundaries" {
+  run guard_bash "grep -r KEY --include=.env ."
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "grep -r KEY --include=.env.production ."
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.example,.env"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows .env.example after a boundary like =" {
+  run guard_bash "grep -r X --include=.env.example ."
+  [ -z "$output" ]
+}
+
+@test "guard blocks any .env variant suffix through the shell" {
+  run guard_bash "cat .env.v2"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.production.local"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.prod-1"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks names that only start with .env.example" {
+  run guard_bash "cat .env.example.bak"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows .env.example named more than once" {
+  run guard_bash "cat .env.example .env.example"
+  [ -z "$output" ]
+  run guard_bash "cat .env.example,.env.example"
+  [ -z "$output" ]
+}
+
+@test "guard allows files that only end in .env, like config.env" {
+  run guard_bash "cat ~/.claude/team-os/config.env"
+  [ -z "$output" ]
+}
+
+@test "guard still blocks reading key files through the shell" {
+  run guard_bash "cat ~/.ssh/id_rsa"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows the Read tool on .env.example" {
+  run guard_read "/work/app/.env.example"
+  [ -z "$output" ]
+}
+
 @test "guard allows reading ordinary files" {
   run guard_read "/work/app/src/index.ts"
+  [ -z "$output" ]
+}
+
+@test "guard blocks the Grep tool on a .env file path" {
+  run guard_grep "/w/.env.local"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks the Grep tool with a .env glob" {
+  run guard_grep "/w" ".env*"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_grep "/w" "**/.env.production"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_grep "/w" "*.pem"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows the Grep tool on .env.example" {
+  run guard_grep "/w/.env.example"
+  [ -z "$output" ]
+  run guard_grep "/w" "**/.env.example"
+  [ -z "$output" ]
+}
+
+@test "guard allows the Grep tool on ordinary sources" {
+  run guard_grep "/w/src" "*.ts"
   [ -z "$output" ]
 }
 

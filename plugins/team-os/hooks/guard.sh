@@ -33,6 +33,30 @@ deny() {
   exit 0
 }
 
+# Is this file name a secret? ".env.example" is a committed template without
+# secrets, so it is readable. Shared by the Read/Edit/Write and Grep rules.
+is_secret_name() {
+  case "$1" in
+    .env.example) return 1 ;;
+    .env|.env.*|*.pem|id_rsa|id_ed25519|credentials) return 0 ;;
+  esac
+  return 1
+}
+
+# Does a Grep glob target a secret file? Globs are checked by their file name
+# part. Each "*" is tried as empty and as a letter, and {a,b} is split, so
+# ".env*" counts as ".env", "*.pem" as "x.pem", and so on.
+glob_targets_secret() {
+  local piece base cand
+  while IFS= read -r piece; do
+    base="${piece##*/}"
+    for cand in "${base//[*?]/}" "${base//[*?]/x}"; do
+      is_secret_name "$cand" && return 0
+    done
+  done < <(printf '%s\n' "$1" | tr '{},' '\n\n\n')
+  return 1
+}
+
 case "$tool" in
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
@@ -58,7 +82,24 @@ case "$tool" in
     fi
 
     # 5. Reading secrets through the shell.
-    if printf '%s' "$cmd" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(\.env(\.[A-Za-z]+)?|id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
+    #    .env files match by whole file name (".env" or ".env.<anything>",
+    #    like ".env.local" or ".env.production.local"), the same as the Read
+    #    tool rule below, so "config.env" is not caught. A name
+    #    starts after whitespace, "/", "=", "," or ":" (so --include=.env and
+    #    "a,.env" count).
+    #    ".env.example" is a committed template without secrets: it is taken
+    #    out of the command first, so it stays readable but a real .env named
+    #    alongside it is still blocked. Only the exact name is exempt:
+    #    ".env.example.bak" is blocked. Each pass consumes the separator
+    #    shared by two neighbours, so it repeats until nothing changes.
+    scan="$cmd"
+    while :; do
+      next="$(printf '%s' "$scan" | sed -E 's#(^|[[:space:]/=,:])\.env\.example([[:space:],:]|$)#\1\2#g')"
+      [ "$next" = "$scan" ] && break
+      scan="$next"
+    done
+    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/=,:])?\.env(\.[A-Za-z0-9_.-]+)?([[:space:],:]|$)' \
+      || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi
     ;;
@@ -66,11 +107,24 @@ case "$tool" in
   Read|Edit|Write)
     path="$(printf '%s' "$input" | jq -r '.tool_input.file_path // empty')"
     base="$(basename "$path")"
-    case "$base" in
-      .env|.env.*|*.pem|id_rsa|id_ed25519|credentials)
-        deny "no-secret-files" "reading or editing $base is blocked. It likely contains secrets."
-        ;;
-    esac
+    if is_secret_name "$base"; then
+      deny "no-secret-files" "reading or editing $base is blocked. It likely contains secrets."
+    fi
+    ;;
+
+  Grep)
+    # Glob is deliberately not in the hooks.json matcher: it only lists file
+    # names and never reads contents. Grep reads contents, so it is covered.
+    # A Grep over a whole directory with no glob can still reach .env files
+    # unless ripgrep skips them (for example through .gitignore).
+    path="$(printf '%s' "$input" | jq -r '.tool_input.path // empty')"
+    glob="$(printf '%s' "$input" | jq -r '.tool_input.glob // empty')"
+    if [ -n "$path" ] && is_secret_name "$(basename "$path")"; then
+      deny "no-secret-files" "searching $(basename "$path") is blocked. It likely contains secrets."
+    fi
+    if [ -n "$glob" ] && glob_targets_secret "$glob"; then
+      deny "no-secret-files" "searching files matching '$glob' is blocked. It would read secrets."
+    fi
     ;;
 esac
 
