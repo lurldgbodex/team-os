@@ -66,6 +66,27 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard blocks any .env variant suffix through the shell" {
+  run guard_bash "cat .env.v2"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.production.local"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat .env.prod-1"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks names that only start with .env.example" {
+  run guard_bash "cat .env.example.bak"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows .env.example named more than once" {
+  run guard_bash "cat .env.example .env.example"
+  [ -z "$output" ]
+  run guard_bash "cat .env.example,.env.example"
+  [ -z "$output" ]
+}
+
 @test "guard allows files that only end in .env, like config.env" {
   run guard_bash "cat ~/.claude/team-os/config.env"
   [ -z "$output" ]
