@@ -22,31 +22,33 @@ Follow these steps in order. Stop and ask the engineer if a step cannot be compl
 
 - Run `git status` and confirm the working tree is clean. If not, stop and ask.
 - Confirm the base branch with the engineer if it is not obvious (main, production, develop).
-- Create a branch named `<type>/<issue-number>-<short-slug>`, for example `feat/42-add-fx-rate-cache`.
+- Create a branch named `<type>/<issue-number>-<short-slug>`, for example `feat/42-add-fx-rate-cache`. Step 3 may find a blocker in another repo; the branch then waits.
 
-## 3. Plan
+## 3. Docs the repo requires before code
+
+If the repo's instructions require something before code (a design doc, an ADR, a spec change), write it, show it, and wait for the engineer's approval. If that work belongs in another repository (for example a shared API spec), say which one and stop until it has landed there. Skip this step if the repo requires none.
+
+## 4. Plan
 
 Write a short plan: files to change, tests to add, risks. Show it to the engineer and wait for approval before coding.
 
-If the repo's instructions require something before code (a design doc, an ADR, a spec change), that comes first: write it, show it, and wait for the engineer's approval before any code. If that work belongs in another repository (for example a shared API spec), say so and stop until it has landed there.
+## 5. Implement
 
-## 4. Implement
-
-- Delegate each well-scoped step to the `coder` subagent, giving it the plan step, the relevant standards and any approved design doc.
-- Run the project's tests after each step. Fix failures before moving on.
+- Delegate each well-scoped step to the `coder` subagent, giving it the plan step, the relevant standards and any approved design doc (link or quote it, and say the engineer approved it).
+- Run the repo's test command after each step (as its instructions name it; see step 6). Fix failures before moving on.
 - Commit with Conventional Commits, referencing the issue, for example `feat(rates): cache FX rates (#42)`.
 
-## 5. Verify
+## 6. Verify
 
 - Run the full test suite and linter, using the commands the repo's instructions name if they name any (for example `make ci`). Report exact results.
 - If something cannot be run, say so. Do not claim it passed.
 
-## 6. Draft pull request
+## 7. Draft pull request
 
 - Push the branch and open a **draft** PR (GitHub connector `create_pull_request` with `draft: true`, or `gh pr create --draft`). Use the repository's pull request template if it has one.
 - Title: `<type>(<scope>): <summary> (#<issue>)`.
 - Body: what and why, how it was tested, screenshots if UI changed, and a line `Closes #<issue>` so merging closes the issue.
 
-## 7. Self-review
+## 8. Self-review
 
 Run the `reviewer` subagent on your own diff, or follow `/team-os:review-pr` for the PR you just opened, but **do not post** the review. Fix what it finds as new commits. Then tell the engineer the PR link, the test results, and anything left for them to decide.
