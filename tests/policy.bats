@@ -38,6 +38,23 @@ apply()  { "$WORK_REPO/bin/apply-policy.sh" "$@"; }
   [ "$status" -eq 0 ]
 }
 
+@test "re-apply drops a rule whose file was deleted and keeps the engineer's own" {
+  echo '{"permissions":{"deny":["Read(secrets/**)"]}}' > "$CLAUDE_HOME/settings.json"
+  apply
+  run jq -r '.permissions.deny | index("Bash(cdk deploy:*)")' "$CLAUDE_HOME/settings.json"
+  [ "$output" != "null" ]
+
+  rm "$WORK_REPO/plugins/team-os/policy/rules/deny-cdk-deploy.json"
+  apply
+
+  run jq -r '.permissions.deny | index("Bash(cdk deploy:*)")' "$CLAUDE_HOME/settings.json"
+  [ "$output" = "null" ]
+  run jq -r '.permissions.deny | index("Read(secrets/**)")' "$CLAUDE_HOME/settings.json"
+  [ "$output" != "null" ]
+  run jq -r '.deny | index("Bash(cdk deploy:*)")' "$CLAUDE_HOME/team-os/managed-rules.json"
+  [ "$output" = "null" ]
+}
+
 @test "remove restores the original settings exactly" {
   echo '{"model":"opus","permissions":{"deny":["Read(secrets/**)"]}}' > "$CLAUDE_HOME/settings.json"
   jq -S . "$CLAUDE_HOME/settings.json" > "$SANDBOX/before.json"
