@@ -165,7 +165,8 @@ strip_text() {
 #   git with add commit tag notes status log diff show switch
 #     checkout branch merge stash restore reset remote rm mv
 # A command that starts with a NAME=value assignment is not on the list (it
-# can change what runs: GIT_PAGER, GIT_SSH_COMMAND, EDITOR). A git option
+# can change what runs: GIT_PAGER, GIT_SSH_COMMAND, EDITOR, GIT_CONFIG_*).
+# Such a word falls into the default case below. A git option
 # before the subcommand (for example -c) and git config, rebase, bisect,
 # filter-branch and submodule are not on the list, because they can run a
 # string as a command.
@@ -184,9 +185,6 @@ syntax_view() {
     # word like "ech?" is never matched against files in the current folder.
     read -r -a w <<< "$line"
     [ "${#w[@]}" -eq 0 ] && continue
-    # A leading NAME=value can change what a command runs (GIT_PAGER,
-    # GIT_SSH_COMMAND, EDITOR, GIT_CONFIG_*), so it is not allowlisted.
-    if [[ "${w[0]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then safe=0; break; fi
     case "${w[0]}" in
       echo|printf|cat|tee|jq|cd|ls|mkdir|touch|true) ;;
       gh)
