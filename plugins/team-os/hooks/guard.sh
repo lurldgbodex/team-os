@@ -33,179 +33,36 @@ deny() {
   exit 0
 }
 
-# Print a "syntax-only" copy of a command, for the rules that look at shell
-# syntax (flags, pipes, subcommands). Text that only mentions a blocked pattern
-# must not trip them: a PR body, a commit message, an echo.
-#   - a quoted string with whitespace is dropped: it is one argument, so it
-#     cannot be a flag or a pipe.
-#   - a quoted string without whitespace is kept, quotes removed, so
-#     "--force" and "sh" still count.
-#   - heredoc bodies are dropped.
-#   - a "#" at the start of a word begins a comment to the end of the line.
-#     It is dropped, so an apostrophe in a comment does not pair with a quote
-#     on another line. This is safe because a backslash (which could escape
-#     the "#") fails strict, see below.
-# The parser only understands plain text. It gives up and prints the command
-# unchanged (so it is checked as before) on anything it cannot read cleanly:
-#   - an unclosed quote or an unterminated heredoc
-#   - a backslash, a backtick, $( ${ $[ (( or $' (command substitution,
-#     expansions, arithmetic, ANSI-C quoting), anywhere in the command,
-#     including inside quotes. The one exception is the body of a heredoc
-#     with a quoted delimiter (<<'EOF'), which the shell does not expand.
-#   - the body of a heredoc with an unquoted delimiter, if it contains $, a
-#     backtick or a backslash: the shell expands those.
-# It then returns 1, so syntax_view knows. (syntax_view below decides when the
-# stripped copy may be used alone.)
-strip_text() {
-  local out
-  out="$(printf '%s\n' "$1" | awk '
-    # Position of the next ch at or after from, or 0. A plain loop, so a long
-    # heredoc body is read once (substr(s, i) per line would be quadratic).
-    function find(ch, from,   j) {
-      for (j = from; j <= n; j++) if (substr(s, j, 1) == ch) return j
-      return 0
-    }
-    # Does t hold anything the parser does not follow?
-    function unreadable(t) {
-      return index(t, "\\") || index(t, "`") || index(t, "$(") || index(t, "${") \
-        || index(t, "$[") || index(t, "((") || index(t, "$" sq)
-    }
-    { s = s $0 "\n" }
-    END {
-      sq = sprintf("%c", 39); n = length(s); i = 1; out = ""; np = 0
-      while (i <= n) {
-        c = substr(s, i, 1)
-        if (c == sq) {
-          j = find(sq, i + 1)
-          if (j == 0) exit 1
-          if (unreadable(substr(s, i, j - i + 1))) exit 1
-          body = substr(s, i + 1, j - i - 1); i = j + 1
-          if (body ~ /[ \t\n]/) body = ""
-          else if (body ~ /[;&|<>()]/) exit 1
-          out = out body; continue
-        }
-        if (c == "\"") {
-          j = find("\"", i + 1)
-          if (j == 0) exit 1
-          if (unreadable(substr(s, i, j - i + 1))) exit 1
-          body = substr(s, i + 1, j - i - 1); i = j + 1
-          if (body ~ /[ \t\n]/) body = ""
-          else if (body ~ /[;&|<>()]/) exit 1
-          out = out body; continue
-        }
-        if (unreadable(substr(s, i, 2))) exit 1
-        if (c == "<" && substr(s, i, 3) == "<<<") { out = out "<<<"; i += 3; continue }
-        if (c == "<" && substr(s, i, 2) == "<<") {
-          k = i + 2; dash = 0
-          if (substr(s, k, 1) == "-") { dash = 1; k++ }
-          while (substr(s, k, 1) ~ /[ \t]/) k++
-          w = ""; quoted = 0; q = ""
-          while (k <= n) {
-            d = substr(s, k, 1)
-            if (q != "") {
-              # Inside a quote: whitespace or a metacharacter means the
-              # quote is unclosed or the delimiter has a space. Give up.
-              if (d == q) { q = ""; k++; continue }
-              if (d ~ /[ \t\n;&|<>()]/) exit 1
-              w = w d; k++; continue
-            }
-            if (d == sq || d == "\"") { q = d; quoted = 1; k++; continue }
-            if (d ~ /[ \t\n;&|<>()]/) break
-            w = w d; k++
-          }
-          if (q != "") exit 1
-          if (unreadable(w) || index(w, "$")) exit 1
-          if (w == "") { out = out "<<"; i += 2; continue }
-          np++; pw[np] = w; pd[np] = dash; pq[np] = quoted
-          out = out "<<"; i = k; continue
-        }
-        if (c == "#" && (i == 1 || substr(s, i - 1, 1) ~ /[ \t\n;&|()]/)) {
-          # Drop the comment text; the newline stays for the heredoc handling.
-          i = find("\n", i); continue
-        }
-        if (c == "\n") {
-          out = out "\n"; i++
-          for (p = 1; p <= np; p++) {
-            done = 0
-            while (i <= n) {
-              e = find("\n", i)
-              line = substr(s, i, e - i); i = e + 1
-              t = line
-              if (pd[p]) sub(/^\t+/, "", t)
-              if (t == pw[p]) { done = 1; break }
-              if (!pq[p] && (index(line, "$") || index(line, "`") || index(line, "\\"))) exit 1
-            }
-            if (!done) exit 1
-          }
-          np = 0; continue
-        }
-        # Redirections are not separators, and the real context is known
-        # here (unquoted). ">&" and "<&" keep the angle bracket only; "&>"
-        # and "&>>" become ">" and ">>". A lone "&" stays a separator.
-        if ((c == ">" || c == "<") && substr(s, i + 1, 1) == "&") {
-          out = out c; i += 2; continue
-        }
-        if (c == "&" && substr(s, i + 1, 1) == ">") { i++; continue }
-        out = out c; i++
-      }
-      printf "%s", out
-    }')" || { printf '%s' "$1"; return 1; }
-  printf '%s' "$out"
-}
-
-# The command as the syntax rules should see it. The stripped copy drops
-# quoted prose, which is only safe when nothing in the line runs a quoted
-# string or heredoc body as code (sh -c "...", eval, trap, source, a variable
-# used as the command, flock ... -c, at <<EOF, ssh host "..." and so on).
-# So the line is split into simple commands (at ; && || | & newline,
-# parentheses and backticks) and the stripped copy is used ALONE only if every
-# command word is on a short allowlist of commands that never run their
-# arguments as code:
-#   echo printf cat tee jq cd ls mkdir touch true
-#   gh with pr, issue, release, api or label
-#   git with add commit tag notes status log diff show switch
-#     checkout branch merge stash restore reset remote rm mv
-# A command that starts with a NAME=value assignment is not on the list (it
-# can change what runs: GIT_PAGER, GIT_SSH_COMMAND, EDITOR, GIT_CONFIG_*).
-# Such a word falls into the default case below. A git option
-# before the subcommand (for example -c) and git config, rebase, bisect,
-# filter-branch and submodule are not on the list, because they can run a
-# string as a command.
-# fetch, pull, push and gh repo are not on the list either: git accepts
-# abbreviated long options (--upload-pa=...) that name a program to run.
-# The allowlist is deliberately short. Any other command word, including one
-# we do not know, brings back the old raw check, so the guard stays strict:
-# the stripped copy, the raw command and the raw command with its quote marks
-# blanked (so "git push --force" ends in a space, not a quote) are all checked.
-syntax_view() {
-  local stripped line w safe=1
-  # If the parser gave up, the "stripped" copy is the raw command: not safe.
-  stripped="$(strip_text "$1")" || safe=0
-  while [ "$safe" -eq 1 ] && IFS= read -r line; do
-    # read -a splits on whitespace without expanding wildcards, so a command
-    # word like "ech?" is never matched against files in the current folder.
-    read -r -a w <<< "$line"
-    [ "${#w[@]}" -eq 0 ] && continue
-    case "${w[0]}" in
-      echo|printf|cat|tee|jq|cd|ls|mkdir|touch|true) ;;
-      gh)
-        case "${w[1]:-}" in
-          pr|issue|release|api|label) ;;
-          *) safe=0; break ;;
-        esac ;;
-      git)
-        case "${w[1]:-}" in
-          add|commit|tag|notes|status|log|diff|show|switch|checkout|branch|merge|stash|restore|reset|remote|rm|mv) ;;
-          *) safe=0; break ;;
-        esac ;;
-      *) safe=0; break ;;
-    esac
-  done < <(printf '%s\n' "$stripped" | tr ';&|()`' '\n\n\n\n\n\n')
-  if [ "$safe" -eq 1 ]; then
-    printf '%s' "$stripped"
-  else
-    printf '%s\n%s\n%s' "$stripped" "$1" "$(printf '%s' "$1" | tr "\"'" '  ')"
-  fi
+# A PR, issue or commit body often mentions a blocked pattern as prose (a
+# force push, a piped installer). That text is data, not a command. This
+# accepts ONE fixed command shape and, only then, prints its first line so the
+# syntax rules can skip the heredoc body. The shape:
+#   HEAD <<'WORD'
+#   ...body...
+#   WORD
+# where HEAD is gh pr|issue create|comment|edit, git commit, or cat > PATH,
+# with plain arguments (no expansions, no backslashes), WORD is the last line
+# and no body line equals WORD. Anything that does not match exactly returns 1
+# and the caller checks the raw command. This narrow shape replaced a general
+# parser on purpose: the shell grammar is too big to mirror safely.
+heredoc_head() {
+  local sq="'" dq='"' bs='\' bt='`' bad tok args re head word line last i
+  local -a lines=()
+  bad="$dq$sq$bs\$$bt"
+  tok="([A-Za-z0-9_./:=,@+%-]|$dq[^$bad]*$dq|$sq[^$bad]*$sq)+"
+  args="( +$tok)*"
+  re="^(gh (pr|issue) (create|comment|edit)$args|git commit$args|cat >>? ?[A-Za-z0-9_./-]+) <<'[A-Za-z_][A-Za-z0-9_]*'$"
+  while IFS= read -r line || [ -n "$line" ]; do lines+=("$line"); done <<< "${1%$'\n'}"
+  [ "${#lines[@]}" -ge 2 ] || return 1
+  head="${lines[0]}"
+  [[ "$head" =~ $re ]] || return 1
+  word="${head##*<<$sq}"; word="${word%$sq}"
+  last=$(( ${#lines[@]} - 1 ))
+  [ "${lines[$last]}" = "$word" ] || return 1
+  for (( i = 1; i < last; i++ )); do
+    [ "${lines[$i]}" = "$word" ] && return 1
+  done
+  printf '%s' "$head"
 }
 
 # Is this file name a secret? ".env.example" is a committed template without
@@ -236,11 +93,10 @@ case "$tool" in
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 
-    # Two kinds of Bash rules. Syntax rules (1, 2, 4) look at flags, pipes and
-    # subcommands, so they run on $syn, the command without quoted prose and
-    # heredoc bodies. Argument rules (3, 5) look at what a command is pointed
-    # at, which is usually inside quotes, so they run on the raw $cmd.
-    syn="$(syntax_view "$cmd")"
+    # Rules 1, 2 and 4 look at syntax, so they skip a PR, issue or commit body
+    # (see heredoc_head). Rules 3 and 5 always see the raw command.
+    syn="$cmd"
+    head="$(heredoc_head "$cmd")" && syn="$head"
 
     # 1. Force pushes rewrite shared history.
     if printf '%s' "$syn" | grep -Eq 'git[[:space:]]+push([^|;&]*)[[:space:]](-f|--force|--force-with-lease)([[:space:]]|$)'; then
