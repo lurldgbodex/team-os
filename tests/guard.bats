@@ -381,7 +381,9 @@ load test_helper
 @test "guard does not treat redirections as command separators" {
   run guard_bash 'git commit -m "mentions git push --force" 2>&1'
   [ -z "$output" ]
-  run guard_bash 'git status 2>&1 & git push --force origin main'
+  # If the "&" were wrongly removed, this would merge into one allowlisted
+  # echo command, so it checks that "&" is still a separator.
+  run guard_bash "echo hi 2>&1 & sh -c 'git push --force origin main'"
   [[ "$output" == *"no-force-push"* ]]
   run guard_bash 'git commit -m "mentions git push --force" &>/dev/null'
   [ -z "$output" ]
