@@ -383,6 +383,17 @@ load test_helper
   [ -z "$output" ]
   run guard_bash 'git status 2>&1 & git push --force origin main'
   [[ "$output" == *"no-force-push"* ]]
+  run guard_bash 'git commit -m "mentions git push --force" &>/dev/null'
+  [ -z "$output" ]
+}
+
+@test "guard does not let re-emitted text join with a real ampersand" {
+  # A heredoc is emitted as "<<"; it must not swallow a following "&".
+  run guard_bash $'cat <<EOF& sh -c \'git push --force origin main\'\nbody\nEOF'
+  [[ "$output" == *"no-force-push"* ]]
+  # A quoted ">" must not swallow a following "&".
+  run guard_bash "echo '>'& sh -c 'git push --force origin main'"
+  [[ "$output" == *"no-force-push"* ]]
 }
 
 @test "guard checks raw text for git push, fetch and pull, and gh repo" {

@@ -81,6 +81,7 @@ strip_text() {
           if (unreadable(substr(s, i, j - i + 1))) exit 1
           body = substr(s, i + 1, j - i - 1); i = j + 1
           if (body ~ /[ \t\n]/) body = ""
+          else if (body ~ /[;&|<>()]/) exit 1
           out = out body; continue
         }
         if (c == "\"") {
@@ -89,6 +90,7 @@ strip_text() {
           if (unreadable(substr(s, i, j - i + 1))) exit 1
           body = substr(s, i + 1, j - i - 1); i = j + 1
           if (body ~ /[ \t\n]/) body = ""
+          else if (body ~ /[;&|<>()]/) exit 1
           out = out body; continue
         }
         if (unreadable(substr(s, i, 2))) exit 1
@@ -97,13 +99,21 @@ strip_text() {
           k = i + 2; dash = 0
           if (substr(s, k, 1) == "-") { dash = 1; k++ }
           while (substr(s, k, 1) ~ /[ \t]/) k++
-          w = ""; quoted = 0
+          w = ""; quoted = 0; q = ""
           while (k <= n) {
             d = substr(s, k, 1)
-            if (d == sq || d == "\"") { quoted = 1; k++; continue }
+            if (q != "") {
+              # Inside a quote: whitespace or a metacharacter means the
+              # quote is unclosed or the delimiter has a space. Give up.
+              if (d == q) { q = ""; k++; continue }
+              if (d ~ /[ \t\n;&|<>()]/) exit 1
+              w = w d; k++; continue
+            }
+            if (d == sq || d == "\"") { q = d; quoted = 1; k++; continue }
             if (d ~ /[ \t\n;&|<>()]/) break
             w = w d; k++
           }
+          if (q != "") exit 1
           if (unreadable(w) || index(w, "$")) exit 1
           if (w == "") { out = out "<<"; i += 2; continue }
           np++; pw[np] = w; pd[np] = dash; pq[np] = quoted
@@ -129,6 +139,13 @@ strip_text() {
           }
           np = 0; continue
         }
+        # Redirections are not separators, and the real context is known
+        # here (unquoted). ">&" and "<&" keep the angle bracket only; "&>"
+        # and "&>>" become ">" and ">>". A lone "&" stays a separator.
+        if ((c == ">" || c == "<") && substr(s, i + 1, 1) == "&") {
+          out = out c; i += 2; continue
+        }
+        if (c == "&" && substr(s, i + 1, 1) == ">") { i++; continue }
         out = out c; i++
       }
       printf "%s", out
@@ -159,11 +176,9 @@ strip_text() {
 # the stripped copy, the raw command and the raw command with its quote marks
 # blanked (so "git push --force" ends in a space, not a quote) are all checked.
 syntax_view() {
-  local stripped rest line w safe=1
+  local stripped line w safe=1
   # If the parser gave up, the "stripped" copy is the raw command: not safe.
   stripped="$(strip_text "$1")" || safe=0
-  # Redirections like 2>&1 and &> are not command separators.
-  rest="$(printf '%s' "$stripped" | sed -E 's/[0-9]*[<>]&[0-9-]*//g; s/&>>?//g')"
   while [ "$safe" -eq 1 ] && IFS= read -r line; do
     # read -a splits on whitespace without expanding wildcards, so a command
     # word like "ech?" is never matched against files in the current folder.
@@ -186,7 +201,7 @@ syntax_view() {
         esac ;;
       *) safe=0; break ;;
     esac
-  done < <(printf '%s\n' "$rest" | tr ';&|()`' '\n\n\n\n\n\n')
+  done < <(printf '%s\n' "$stripped" | tr ';&|()`' '\n\n\n\n\n\n')
   if [ "$safe" -eq 1 ]; then
     printf '%s' "$stripped"
   else
