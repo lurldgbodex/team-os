@@ -141,24 +141,25 @@ strip_text() {
 # string or heredoc body as code (sh -c "...", eval, trap, source, a variable
 # used as the command, flock ... -c, at <<EOF, ssh host "..." and so on).
 # So the line is split into simple commands (at ; && || | & newline,
-# parentheses and backticks) and the stripped copy is used ALONE only if every command word
-# is on a short allowlist of commands that never run their arguments as code:
+# parentheses and backticks) and the stripped copy is used ALONE only if every
+# command word is on a short allowlist of commands that never run their arguments as code:
 #   echo printf cat tee jq cd ls mkdir touch true
-#   gh with pr, issue, release, api, label or repo
-#   git with add commit tag notes status log diff show fetch pull push switch
+#   gh with pr, issue, release, api or label
+#   git with add commit tag notes status log diff show switch
 #     checkout branch merge stash restore reset remote rm mv
 # A command that starts with a NAME=value assignment is not on the list (it
 # can change what runs: GIT_PAGER, GIT_SSH_COMMAND, EDITOR). A git option
-# before the subcommand (for example -c) and git config/rebase/bisect/filter-branch/
-# submodule are not on the list, because they can run a string as a command.
-# Neither is a git command with --upload-pack, --receive-pack or --exec,
-# which name a program for fetch, pull or push to run.
+# before the subcommand (for example -c) and git config, rebase, bisect,
+# filter-branch and submodule are not on the list, because they can run a
+# string as a command.
+# fetch, pull, push and gh repo are not on the list either: git accepts
+# abbreviated long options (--upload-pa=...) that name a program to run.
 # The allowlist is deliberately short. Any other command word, including one
 # we do not know, brings back the old raw check, so the guard stays strict:
 # the stripped copy, the raw command and the raw command with its quote marks
 # blanked (so "git push --force" ends in a space, not a quote) are all checked.
 syntax_view() {
-  local stripped rest line word w i safe=1
+  local stripped rest line w safe=1
   # If the parser gave up, the "stripped" copy is the raw command: not safe.
   stripped="$(strip_text "$1")" || safe=0
   # Redirections like 2>&1 and &> are not command separators.
@@ -175,19 +176,14 @@ syntax_view() {
       echo|printf|cat|tee|jq|cd|ls|mkdir|touch|true) ;;
       gh)
         case "${w[1]:-}" in
-          pr|issue|release|api|label|repo) ;;
+          pr|issue|release|api|label) ;;
           *) safe=0; break ;;
         esac ;;
       git)
         case "${w[1]:-}" in
-          add|commit|tag|notes|status|log|diff|show|fetch|pull|push|switch|checkout|branch|merge|stash|restore|reset|remote|rm|mv) ;;
+          add|commit|tag|notes|status|log|diff|show|switch|checkout|branch|merge|stash|restore|reset|remote|rm|mv) ;;
           *) safe=0; break ;;
-        esac
-        for word in "${w[@]}"; do
-          case "$word" in
-            --upload-pack*|--receive-pack*|--exec*) safe=0; break 2 ;;
-          esac
-        done ;;
+        esac ;;
       *) safe=0; break ;;
     esac
   done < <(printf '%s\n' "$rest" | tr ';&|()`' '\n\n\n\n\n\n')
