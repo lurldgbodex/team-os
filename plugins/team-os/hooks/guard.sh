@@ -126,8 +126,10 @@ case "$tool" in
     #    .env files match by whole file name (".env" or ".env.<anything>",
     #    like ".env.local" or ".env.production.local"), the same as the Read
     #    tool rule below, so "config.env" is not caught. A name
-    #    starts after whitespace, "/", "=", "," or ":" (so --include=.env and
-    #    "a,.env" count).
+    #    starts after whitespace, "/", "=", ",", ":" or a quote (so
+    #    --include=.env, "a,.env" and a quoted ".env" count), and ends at
+    #    whitespace, ",", ":", a quote or the end of the line. Key files
+    #    (id_rsa, *.pem ...) likewise end at whitespace, a quote or the end.
     #    ".env.example" is a committed template without secrets: it is taken
     #    out of the command first, so it stays readable but a real .env named
     #    alongside it is still blocked. Only the exact name is exempt:
@@ -135,12 +137,12 @@ case "$tool" in
     #    shared by two neighbours, so it repeats until nothing changes.
     scan="$cmd"
     while :; do
-      next="$(printf '%s' "$scan" | sed -E 's#(^|[[:space:]/=,:])\.env\.example([[:space:],:]|$)#\1\2#g')"
+      next="$(printf '%s' "$scan" | sed -E 's#(^|[[:space:]/=,:"'\''])\.env\.example([[:space:],:"'\'']|$)#\1\2#g')"
       [ "$next" = "$scan" ] && break
       scan="$next"
     done
-    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/=,:])?\.env(\.[A-Za-z0-9_.-]+)?([[:space:],:]|$)' \
-      || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]]|$)'; then
+    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/=,:"'\''])?\.env(\.[A-Za-z0-9_.-]+)?([[:space:],:"'\'']|$)' \
+      || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]"'\'']|$)'; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi
     ;;
