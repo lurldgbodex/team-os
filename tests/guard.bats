@@ -407,7 +407,9 @@ load test_helper
 }
 
 @test "guard checks raw text for git push, fetch and pull, and gh repo" {
-  # Not allowlisted, so the quoted text is checked: blocked.
+  # Not allowlisted, so the quoted text is checked: blocked. This is a known
+  # false positive and a trade-off, not a requirement: the commit message
+  # only mentions a deploy, but push is not on the allowlist.
   run guard_bash 'git add a.txt && git commit -m "docs: cdk deploy notes" && git push origin main'
   [[ "$output" == *"no-local-deploy"* ]]
   # git accepts abbreviated long options.
