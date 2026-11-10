@@ -17,6 +17,7 @@ Run these checks and report a short pass/fail list. Fix nothing without asking.
    - The hook is registered: `jq -r '.hooks.PreToolUse[] | "\(.matcher) \(.hooks[].command)"' "${CLAUDE_PLUGIN_ROOT}/hooks/hooks.json"` lists `guard.sh` for `Bash|Read|Edit|Write|Grep`, and `test -x "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh"` passes.
    - The hook blocks: `printf '%s' '{"tool_name":"Read","tool_input":{"file_path":"/tmp/id_rsa"}}' | "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh" | jq -r '.hookSpecificOutput.permissionDecision // "allowed"'` prints `deny`.
    - Run exactly that test. Do not test with force-push, `curl | sh` or `.env` text in the command: the live guard blocks the test command itself.
+   - If any of these is not as described (other output, empty output or an error), report the guard hook as **FAILED** and name which check failed: plugin not enabled, hook not registered, `guard.sh` not executable, or no `deny`. Do not fix anything without asking.
 
 Then give the one-minute tour:
 
