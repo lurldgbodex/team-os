@@ -37,22 +37,25 @@ deny() {
 # syntax (flags, pipes, subcommands). Text that only mentions a blocked pattern
 # must not trip them: a PR body, a commit message, an echo.
 #   - a quoted string with whitespace is dropped: it is one argument, so it
-#     cannot be a flag or a pipe. (Unless a double-quoted one has $( or a
-#     backtick: that runs code, so it is kept.)
+#     cannot be a flag or a pipe.
 #   - a quoted string without whitespace is kept, quotes removed, so
 #     "--force" and "sh" still count.
-#   - heredoc bodies are dropped. An unquoted-delimiter body with $( or a
-#     backtick runs code, so it fails strict.
+#   - heredoc bodies are dropped.
 #   - a "#" at the start of a word begins a comment to the end of the line.
 #     It is dropped, so an apostrophe in a comment does not pair with a quote
-#     on another line.
-#   - an unquoted $ directly followed by a single quote (ANSI-C quoting) can
-#     hold an escaped quote that would pair quotes wrongly, so it also counts
-#     as unreadable.
-#   - anything we cannot read cleanly (unclosed quote, unterminated heredoc,
-#     ANSI-C quoting)
-#     prints the command unchanged, so it is checked as before.
-#   (syntax_view below decides when this stripped copy may be used alone.)
+#     on another line. This is safe because a backslash (which could escape
+#     the "#") fails strict, see below.
+# The parser only understands plain text. It gives up and prints the command
+# unchanged (so it is checked as before) on anything it cannot read cleanly:
+#   - an unclosed quote or an unterminated heredoc
+#   - a backslash, a backtick, $( ${ $[ (( or $' (command substitution,
+#     expansions, arithmetic, ANSI-C quoting), anywhere in the command,
+#     including inside quotes. The one exception is the body of a heredoc
+#     with a quoted delimiter (<<'EOF'), which the shell does not expand.
+#   - the body of a heredoc with an unquoted delimiter, if it contains $, a
+#     backtick or a backslash: the shell expands those.
+# It then returns 1, so syntax_view knows. (syntax_view below decides when the
+# stripped copy may be used alone.)
 strip_text() {
   local out
   out="$(printf '%s\n' "$1" | awk '
@@ -62,36 +65,33 @@ strip_text() {
       for (j = from; j <= n; j++) if (substr(s, j, 1) == ch) return j
       return 0
     }
+    # Does t hold anything the parser does not follow?
+    function unreadable(t) {
+      return index(t, "\\") || index(t, "`") || index(t, "$(") || index(t, "${") \
+        || index(t, "$[") || index(t, "((") || index(t, "$" sq)
+    }
     { s = s $0 "\n" }
     END {
       sq = sprintf("%c", 39); n = length(s); i = 1; out = ""; np = 0
       while (i <= n) {
         c = substr(s, i, 1)
-        if (c == "\\") { out = out substr(s, i, 2); i += 2; continue }
-        # ANSI-C quoting (dollar then single quote) allows an escaped single
-        # quote inside, which this parser does not follow, so quotes could pair
-        # wrongly. Give up and use the raw command.
-        if (c == "$" && substr(s, i + 1, 1) == sq) exit 1
         if (c == sq) {
           j = find(sq, i + 1)
           if (j == 0) exit 1
+          if (unreadable(substr(s, i, j - i + 1))) exit 1
           body = substr(s, i + 1, j - i - 1); i = j + 1
           if (body ~ /[ \t\n]/) body = ""
           out = out body; continue
         }
         if (c == "\"") {
-          j = i + 1
-          while (j <= n) {
-            d = substr(s, j, 1)
-            if (d == "\\") j += 2
-            else if (d == "\"") break
-            else j++
-          }
-          if (j > n) exit 1
+          j = find("\"", i + 1)
+          if (j == 0) exit 1
+          if (unreadable(substr(s, i, j - i + 1))) exit 1
           body = substr(s, i + 1, j - i - 1); i = j + 1
-          if (body ~ /[ \t\n]/ && body !~ /[$][(]|`/) body = ""
+          if (body ~ /[ \t\n]/) body = ""
           out = out body; continue
         }
+        if (unreadable(substr(s, i, 2))) exit 1
         if (c == "<" && substr(s, i, 3) == "<<<") { out = out "<<<"; i += 3; continue }
         if (c == "<" && substr(s, i, 2) == "<<") {
           k = i + 2; dash = 0
@@ -104,6 +104,7 @@ strip_text() {
             if (d ~ /[ \t\n;&|<>()]/) break
             w = w d; k++
           }
+          if (unreadable(w) || index(w, "$")) exit 1
           if (w == "") { out = out "<<"; i += 2; continue }
           np++; pw[np] = w; pd[np] = dash; pq[np] = quoted
           out = out "<<"; i = k; continue
@@ -122,7 +123,7 @@ strip_text() {
               t = line
               if (pd[p]) sub(/^\t+/, "", t)
               if (t == pw[p]) { done = 1; break }
-              if (!pq[p] && line ~ /[$][(]|`/) exit 1
+              if (!pq[p] && (index(line, "$") || index(line, "`") || index(line, "\\"))) exit 1
             }
             if (!done) exit 1
           }
@@ -131,7 +132,7 @@ strip_text() {
         out = out c; i++
       }
       printf "%s", out
-    }')" || { printf '%s' "$1"; return; }
+    }')" || { printf '%s' "$1"; return 1; }
   printf '%s' "$out"
 }
 
@@ -157,10 +158,11 @@ strip_text() {
 # blanked (so "git push --force" ends in a space, not a quote) are all checked.
 syntax_view() {
   local stripped rest line word w i safe=1
-  stripped="$(strip_text "$1")"
+  # If the parser gave up, the "stripped" copy is the raw command: not safe.
+  stripped="$(strip_text "$1")" || safe=0
   # Redirections like 2>&1 and &> are not command separators.
   rest="$(printf '%s' "$stripped" | sed -E 's/[0-9]*[<>]&[0-9-]*//g; s/&>>?//g')"
-  while IFS= read -r line; do
+  while [ "$safe" -eq 1 ] && IFS= read -r line; do
     # read -a splits on whitespace without expanding wildcards, so a command
     # word like "ech?" is never matched against files in the current folder.
     read -r -a w <<< "$line"

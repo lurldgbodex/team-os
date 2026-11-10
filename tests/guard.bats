@@ -268,9 +268,9 @@ load test_helper
   # Escaped quotes are literal, so the words are real arguments: still blocked.
   run guard_bash 'echo \"git push --force origin main\"'
   [[ "$output" == *"no-force-push"* ]]
-  # Escaped quotes inside a quoted string stay part of that string: allowed.
+  # A backslash fails strict, so the raw command is checked: blocked.
   run guard_bash 'echo "say \"hi\" git push --force"'
-  [ -z "$output" ]
+  [[ "$output" == *"no-force-push"* ]]
 }
 
 @test "guard blocks deploys passed to a shell" {
@@ -376,4 +376,21 @@ load test_helper
   [ -z "$output" ]
   run guard_bash 'git add a.txt && git commit -m "docs: cdk deploy notes" && git push origin main'
   [ -z "$output" ]
+}
+
+@test "guard fails strict on escapes and expansions that could hide a command" {
+  # An escaped character before # does not start a comment.
+  run guard_bash 'echo a\ #b; git push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
+  # Quotes nested in $( ) inside double quotes.
+  run guard_bash $'echo "$(echo \'a"b\')" ; git push --force ; echo "$(echo \'c"d\')"'
+  [[ "$output" == *"no-force-push"* ]]
+  # << as an arithmetic shift is not a heredoc.
+  run guard_bash $'echo $((1<<2))\ngit push --force origin main\n2'
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash $'echo $[1<<2]\ngit push --force origin main\n2'
+  [[ "$output" == *"no-force-push"* ]]
+  # ${ ... #} is not a comment.
+  run guard_bash 'echo ${x:- #} ; git push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
 }
