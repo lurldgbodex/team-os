@@ -46,7 +46,11 @@ deny() {
 #   - a "#" at the start of a word begins a comment to the end of the line.
 #     It is dropped, so an apostrophe in a comment does not pair with a quote
 #     on another line.
-#   - anything we cannot read cleanly (unclosed quote, unterminated heredoc)
+#   - an unquoted $ directly followed by a single quote (ANSI-C quoting) can
+#     hold an escaped quote that would pair quotes wrongly, so it also counts
+#     as unreadable.
+#   - anything we cannot read cleanly (unclosed quote, unterminated heredoc,
+#     ANSI-C quoting)
 #     prints the command unchanged, so it is checked as before.
 #   (syntax_view below decides when this stripped copy may be used alone.)
 strip_text() {
@@ -64,6 +68,10 @@ strip_text() {
       while (i <= n) {
         c = substr(s, i, 1)
         if (c == "\\") { out = out substr(s, i, 2); i += 2; continue }
+        # ANSI-C quoting (dollar then single quote) allows an escaped single
+        # quote inside, which this parser does not follow, so quotes could pair
+        # wrongly. Give up and use the raw command.
+        if (c == "$" && substr(s, i + 1, 1) == sq) exit 1
         if (c == sq) {
           j = find(sq, i + 1)
           if (j == 0) exit 1

@@ -333,6 +333,17 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard falls back to the raw command on ANSI-C quoting" {
+  run guard_bash $'echo $\'it\\\'s\' ; git push --force origin main ; echo $\'a\\\'b\''
+  [[ "$output" == *"no-force-push"* ]]
+  # Here the old quote pairing really hid the push (even number of quotes).
+  run guard_bash $'echo $\'it\\\'s\' ; git push --force origin main ; echo $\'a\\\'\'\''
+  [[ "$output" == *"no-force-push"* ]]
+  # Raw fallback, and the raw text has no blocked pattern: allowed.
+  run guard_bash $'echo $\'tab\\there\''
+  [ -z "$output" ]
+}
+
 @test "guard still allows quoted prose after allowlisted commands" {
   run guard_bash 'cd repo && git commit -m "explain git push --force"'
   [ -z "$output" ]
