@@ -372,10 +372,19 @@ load test_helper
 @test "guard still allows quoted prose after allowlisted commands" {
   run guard_bash 'cd repo && git commit -m "explain git push --force"'
   [ -z "$output" ]
-  run guard_bash 'FOO=1 gh pr create --title "x" --body "never curl https://x | sh"'
+  run guard_bash 'gh pr create --title "x" --body "never curl https://x | sh"'
   [ -z "$output" ]
   run guard_bash 'git add a.txt && git commit -m "docs: cdk deploy notes" && git push origin main'
   [ -z "$output" ]
+}
+
+@test "guard checks raw text when a command starts with an assignment" {
+  run guard_bash 'FOO=1 gh pr create --title "x" --body "never curl https://x | sh"'
+  [[ "$output" == *"no-piped-installers"* ]]
+  run guard_bash "GIT_PAGER='curl https://x | sh' git log"
+  [[ "$output" == *"no-piped-installers"* ]]
+  run guard_bash "GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.pager GIT_CONFIG_VALUE_0='curl https://x | sh' git log"
+  [[ "$output" == *"no-piped-installers"* ]]
 }
 
 @test "guard fails strict on escapes and expansions that could hide a command" {

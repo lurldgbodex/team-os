@@ -147,8 +147,9 @@ strip_text() {
 #   gh with pr, issue, release, api, label or repo
 #   git with add commit tag notes status log diff show fetch pull push switch
 #     checkout branch merge stash restore reset remote rm mv
-# Leading NAME=value assignments are skipped. A git option before the
-# subcommand (for example -c) and git config/rebase/bisect/filter-branch/
+# A command that starts with a NAME=value assignment is not on the list (it
+# can change what runs: GIT_PAGER, GIT_SSH_COMMAND, EDITOR). A git option
+# before the subcommand (for example -c) and git config/rebase/bisect/filter-branch/
 # submodule are not on the list, because they can run a string as a command.
 # Neither is a git command with --upload-pack, --receive-pack or --exec,
 # which name a program for fetch, pull or push to run.
@@ -166,20 +167,19 @@ syntax_view() {
     # read -a splits on whitespace without expanding wildcards, so a command
     # word like "ech?" is never matched against files in the current folder.
     read -r -a w <<< "$line"
-    i=0
-    while [ "$i" -lt "${#w[@]}" ] && [[ "${w[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do
-      i=$((i + 1))
-    done
-    [ "$i" -ge "${#w[@]}" ] && continue
-    case "${w[$i]}" in
+    [ "${#w[@]}" -eq 0 ] && continue
+    # A leading NAME=value can change what a command runs (GIT_PAGER,
+    # GIT_SSH_COMMAND, EDITOR, GIT_CONFIG_*), so it is not allowlisted.
+    if [[ "${w[0]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then safe=0; break; fi
+    case "${w[0]}" in
       echo|printf|cat|tee|jq|cd|ls|mkdir|touch|true) ;;
       gh)
-        case "${w[$((i + 1))]:-}" in
+        case "${w[1]:-}" in
           pr|issue|release|api|label|repo) ;;
           *) safe=0; break ;;
         esac ;;
       git)
-        case "${w[$((i + 1))]:-}" in
+        case "${w[1]:-}" in
           add|commit|tag|notes|status|log|diff|show|fetch|pull|push|switch|checkout|branch|merge|stash|restore|reset|remote|rm|mv) ;;
           *) safe=0; break ;;
         esac
