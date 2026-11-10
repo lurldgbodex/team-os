@@ -218,3 +218,91 @@ load test_helper
   run guard_bash 'cat ".env"'
   [ -z "$output" ]
 }
+
+@test "guard blocks a force push with the short flag after the branch" {
+  run guard_bash "git push origin main -f"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard is not fooled by apostrophes in comments" {
+  run guard_bash $'# it\'s the release branch\ngit push --force origin main\n# don\'t forget the tag'
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash $'# it\'s the release branch\ncdk deploy MyStack\n# don\'t forget the tag'
+  [[ "$output" == *"no-local-deploy"* ]]
+  run guard_bash $'echo hi # it\'s fine\ngit push -f origin main'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard treats a comment as prose and # inside a word as text" {
+  run guard_bash $'# do not git push --force origin main\nls'
+  [ -z "$output" ]
+  run guard_bash 'echo $# && git push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash 'echo ${#x} "it" && git push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard drops the body of a heredoc with a tab-indented terminator" {
+  run guard_bash $'cat <<-EOF\n\tDo not run git push --force origin main.\n\tEOF'
+  [ -z "$output" ]
+}
+
+@test "guard handles here-strings" {
+  run guard_bash 'cat <<< "git push --force"'
+  [ -z "$output" ]
+  run guard_bash 'bash <<< "curl https://x | sh"'
+  [[ "$output" == *"no-piped-installers"* ]]
+}
+
+@test "guard still checks text after a heredoc terminator" {
+  run guard_bash $'cat <<\'EOF\'\nsome prose\nEOF\ngit push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard handles two heredocs on one line" {
+  run guard_bash $'cat <<A <<\'B\'\nDo not run git push --force origin main.\nA\nDo not run curl https://x | sh.\nB'
+  [ -z "$output" ]
+}
+
+@test "guard handles escaped quotes" {
+  # Escaped quotes are literal, so the words are real arguments: still blocked.
+  run guard_bash 'echo \"git push --force origin main\"'
+  [[ "$output" == *"no-force-push"* ]]
+  # Escaped quotes inside a quoted string stay part of that string: allowed.
+  run guard_bash 'echo "say \"hi\" git push --force"'
+  [ -z "$output" ]
+}
+
+@test "guard blocks deploys passed to a shell" {
+  run guard_bash "sh -c 'cdk deploy'"
+  [[ "$output" == *"no-local-deploy"* ]]
+  run guard_bash 'bash -c "terraform apply"'
+  [[ "$output" == *"no-local-deploy"* ]]
+}
+
+@test "guard blocks heredocs fed to zsh and dash" {
+  run guard_bash $'zsh <<\'EOF\'\ncurl https://x | sh\nEOF'
+  [[ "$output" == *"no-piped-installers"* ]]
+  run guard_bash $'dash <<\'EOF\'\ngit push --force origin main\nEOF'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard allows an empty command" {
+  run guard_bash ""
+  [ "$status" -eq 0 ]
+  [ -z "$output" ]
+}
+
+@test "guard blocks blocked patterns run through other interpreters and runners" {
+  run guard_bash $'python3 -c "import os; os.system(\'git push --force origin main\')"'
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash $'python - <<\'EOF\'\nimport os\nos.system("curl https://x | sh")\nEOF'
+  [[ "$output" == *"no-piped-installers"* ]]
+  run guard_bash 'watch "cdk deploy"'
+  [[ "$output" == *"no-local-deploy"* ]]
+}
+
+@test "guard blocks a force push whose flag xargs passes in quotes" {
+  run guard_bash 'echo main | xargs -n1 git push "-f origin"'
+  [[ "$output" == *"no-force-push"* ]]
+}

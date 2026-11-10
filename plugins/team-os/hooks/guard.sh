@@ -43,11 +43,20 @@ deny() {
 #     "--force" and "sh" still count.
 #   - heredoc bodies are dropped. An unquoted-delimiter body with $( or a
 #     backtick runs code, so it fails strict.
+#   - a "#" at the start of a word begins a comment to the end of the line.
+#     It is dropped, so an apostrophe in a comment does not pair with a quote
+#     on another line.
 #   - anything we cannot read cleanly (unclosed quote, unterminated heredoc)
 #     prints the command unchanged, so it is checked as before.
 strip_text() {
   local out
   out="$(printf '%s\n' "$1" | awk '
+    # Position of the next ch at or after from, or 0. A plain loop, so a long
+    # heredoc body is read once (substr(s, i) per line would be quadratic).
+    function find(ch, from,   j) {
+      for (j = from; j <= n; j++) if (substr(s, j, 1) == ch) return j
+      return 0
+    }
     { s = s $0 "\n" }
     END {
       sq = sprintf("%c", 39); n = length(s); i = 1; out = ""; np = 0
@@ -55,9 +64,9 @@ strip_text() {
         c = substr(s, i, 1)
         if (c == "\\") { out = out substr(s, i, 2); i += 2; continue }
         if (c == sq) {
-          j = index(substr(s, i + 1), sq)
+          j = find(sq, i + 1)
           if (j == 0) exit 1
-          body = substr(s, i + 1, j - 1); i += j + 1
+          body = substr(s, i + 1, j - i - 1); i = j + 1
           if (body ~ /[ \t\n]/) body = ""
           out = out body; continue
         }
@@ -90,13 +99,17 @@ strip_text() {
           np++; pw[np] = w; pd[np] = dash; pq[np] = quoted
           out = out "<<"; i = k; continue
         }
+        if (c == "#" && (i == 1 || substr(s, i - 1, 1) ~ /[ \t\n;&|()]/)) {
+          # Drop the comment text; the newline stays for the heredoc handling.
+          i = find("\n", i); continue
+        }
         if (c == "\n") {
           out = out "\n"; i++
           for (p = 1; p <= np; p++) {
             done = 0
             while (i <= n) {
-              e = index(substr(s, i), "\n")
-              line = substr(s, i, e - 1); i += e
+              e = find("\n", i)
+              line = substr(s, i, e - i); i = e + 1
               t = line
               if (pd[p]) sub(/^\t+/, "", t)
               if (t == pw[p]) { done = 1; break }
@@ -120,10 +133,12 @@ strip_text() {
 # blanked (so "git push --force" ends in a space, not a quote) are all
 # checked. A word counts only
 # as a whole word, so "install.sh", "--bash" and "git-sh" do not.
+# The word list cannot be complete (any program can run a string as code).
+# A word on it only brings back the old behaviour: the raw command is checked.
 syntax_view() {
   local stripped
   stripped="$(strip_text "$1")"
-  if printf '%s' "$stripped" | grep -Eq '(^|[^[:alnum:]_.-])(sh|bash|zsh|dash|ksh|fish|eval|ssh|su)([^[:alnum:]_.-]|$)'; then
+  if printf '%s' "$stripped" | grep -Eq '(^|[^[:alnum:]_.-])(sh|bash|zsh|dash|ksh|fish|eval|ssh|su|python[0-9.]*|node|deno|bun|perl|ruby|php|awk|gawk|mawk|xargs|watch|tmux|screen|script|pwsh|powershell)([^[:alnum:]_.-]|$)'; then
     printf '%s\n%s\n%s' "$stripped" "$1" "$(printf '%s' "$1" | tr "\"'" '  ')"
   else
     printf '%s' "$stripped"
