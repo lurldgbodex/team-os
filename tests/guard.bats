@@ -117,6 +117,16 @@ load test_helper
 @test "guard blocks a quoted .env named next to a quoted .env.example" {
   run guard_bash "cat \".env.example\" \".env\""
   [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat '.env.example' '.env'"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat \".env.example\"\".env\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat '.env.example'.env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat \".env.example\"/../.env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat \".env.example.bak\""
+  [[ "$output" == *"no-secret-files"* ]]
 }
 
 @test "guard allows quoted .env.example and quoted config.env" {
