@@ -387,6 +387,16 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard reads a quoted heredoc delimiter with a space" {
+  # Bash ends the heredoc at the line "a b", so the force push is real.
+  run guard_bash $'cat <<\'a b\'\nx\na b\ngit push --force origin main\necho \'\na'
+  [[ "$output" == *"no-force-push"* ]]
+  # The parser gives up on a delimiter with whitespace, so the raw text is
+  # checked, body included: the prose that mentions a force push is blocked.
+  run guard_bash $'cat <<"a b"\nnever git push --force origin main\na b'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
 @test "guard does not let re-emitted text join with a real ampersand" {
   # A heredoc is emitted as "<<"; it must not swallow a following "&".
   run guard_bash $'cat <<EOF& sh -c \'git push --force origin main\'\nbody\nEOF'
