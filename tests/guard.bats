@@ -97,6 +97,37 @@ load test_helper
   [[ "$output" == *"no-secret-files"* ]]
 }
 
+@test "guard blocks quoted secret file names through the shell" {
+  run guard_bash "cat \".env\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat '.env'"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "head \".env.local\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "source \"./.env\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat \"app/.env.production\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat \"\$HOME/.ssh/id_rsa\""
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat 'server.pem'"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks a quoted .env named next to a quoted .env.example" {
+  run guard_bash "cat \".env.example\" \".env\""
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows quoted .env.example and quoted config.env" {
+  run guard_bash "cat \".env.example\""
+  [ -z "$output" ]
+  run guard_bash "cat '.env.example'"
+  [ -z "$output" ]
+  run guard_bash "cat \"config.env\""
+  [ -z "$output" ]
+}
+
 @test "guard allows the Read tool on .env.example" {
   run guard_read "/work/app/.env.example"
   [ -z "$output" ]
