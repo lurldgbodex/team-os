@@ -159,7 +159,8 @@ strip_text() {
 # used as the command, flock ... -c, at <<EOF, ssh host "..." and so on).
 # So the line is split into simple commands (at ; && || | & newline,
 # parentheses and backticks) and the stripped copy is used ALONE only if every
-# command word is on a short allowlist of commands that never run their arguments as code:
+# command word is on a short allowlist of commands that never run their
+# arguments as code:
 #   echo printf cat tee jq cd ls mkdir touch true
 #   gh with pr, issue, release, api or label
 #   git with add commit tag notes status log diff show switch
