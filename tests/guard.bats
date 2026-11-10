@@ -378,6 +378,13 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard does not treat redirections as command separators" {
+  run guard_bash 'git commit -m "mentions git push --force" 2>&1'
+  [ -z "$output" ]
+  run guard_bash 'git status 2>&1 & git push --force origin main'
+  [[ "$output" == *"no-force-push"* ]]
+}
+
 @test "guard checks raw text for git push, fetch and pull, and gh repo" {
   # Not allowlisted, so the quoted text is checked: blocked.
   run guard_bash 'git add a.txt && git commit -m "docs: cdk deploy notes" && git push origin main'
