@@ -140,6 +140,8 @@ load test_helper
   [ -z "$output" ]
   run guard_bash "cat \"config.env\""
   [ -z "$output" ]
+  run guard_bash "cat \".env.example\" \"README.md\""
+  [ -z "$output" ]
 }
 
 @test "guard allows the Read tool on .env.example" {
