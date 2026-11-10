@@ -193,6 +193,13 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
 }
 
+@test "guard does not treat cat into /dev as a body heredoc" {
+  run guard_bash "cat > /dev/tcp/example.com/80 <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "cat >>/dev/null <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
 @test "guard allows the gh pr create heredoc with a trailing newline" {
   run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}${BODY}${NL}EOF${NL}"
   [ -z "$output" ]

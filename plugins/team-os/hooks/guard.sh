@@ -56,6 +56,10 @@ heredoc_head() {
   [ "${#lines[@]}" -ge 2 ] || return 1
   head="${lines[0]}"
   [[ "$head" =~ $re ]] || return 1
+  # In bash, cat > /dev/tcp/host/port sends the body over the network.
+  case "$head" in
+    "cat >/dev/"*|"cat > /dev/"*|"cat >>/dev/"*|"cat >> /dev/"*) return 1 ;;
+  esac
   word="${head##*<<$sq}"; word="${word%$sq}"
   last=$(( ${#lines[@]} - 1 ))
   [ "${lines[$last]}" = "$word" ] || return 1
