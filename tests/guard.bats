@@ -180,6 +180,19 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
 }
 
+@test "guard allows gh pr edit and gh issue edit heredoc bodies" {
+  run guard_bash "gh pr edit 9 --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [ -z "$output" ]
+  run guard_bash "gh issue edit 8 --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [ -z "$output" ]
+}
+
+@test "guard treats a body line that only looks like the terminator as body" {
+  # bash ends the heredoc only at a line that is exactly EOF, so "EOF " is body.
+  run guard_bash "gh pr create --body-file - <<'EOF'${NL}EOF ${NL}${BODY}${NL}EOF"
+  [ -z "$output" ]
+}
+
 @test "guard allows the gh pr create heredoc with a trailing newline" {
   run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}${BODY}${NL}EOF${NL}"
   [ -z "$output" ]
@@ -223,6 +236,29 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
 @test "guard blocks a heredoc head line with a backslash" {
   run guard_bash "gh pr create --title a\\ b --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
   [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a backslash, dollar or backtick inside a quoted head argument" {
+  run guard_bash "gh pr create --title \"a\\b\" --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "gh pr create --title 'a\\b' --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "gh pr create --title 'a\$b' --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "gh pr create --title 'a\`b' --body-file - <<'EOF'${NL}${BODY}${NL}EOF"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a heredoc whose terminator has trailing space" {
+  run guard_bash "gh pr create --body-file - <<'EOF'${NL}${BODY}${NL}EOF "
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard allows blank lines after the heredoc terminator" {
+  # The guard reads the command through $(...), which drops trailing newlines.
+  # Trailing blank lines run nothing in bash either, so this is safe.
+  run guard_bash "gh pr create --body-file - <<'EOF'${NL}${BODY}${NL}EOF${NL}${NL}"
+  [ -z "$output" ]
 }
 
 @test "guard blocks a command after the heredoc terminator" {
