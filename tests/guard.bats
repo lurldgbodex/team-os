@@ -112,6 +112,10 @@ load test_helper
   [[ "$output" == *"no-secret-files"* ]]
   run guard_bash "cat 'server.pem'"
   [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "head '.env.local'"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cat '~/.ssh/id_rsa'"
+  [[ "$output" == *"no-secret-files"* ]]
 }
 
 @test "guard blocks a quoted .env named next to a quoted .env.example" {
