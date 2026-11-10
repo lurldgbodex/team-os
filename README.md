@@ -73,7 +73,7 @@ Takes out the plugin, marketplace, rules, hook and status line (restoring yours 
 
 - Add or change a rule: one small file under `plugins/team-os/policy/` (JSON with `why` and `owner`, or one Markdown file per behaviour rule).
 - Add knowledge: a file in `plugins/team-os/knowledge/` plus one row in `index.md`.
-- Before opening a PR: `bin/test.sh` (hygiene check + bats tests).
+- Before opening a PR: `bin/test.sh` (hygiene check + bats tests). CI (`.github/workflows/ci.yml`) runs the same checks plus shellcheck on every pull request and push to main.
 - Architecture and design decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - Walking the team through it: [docs/DEMO.md](docs/DEMO.md).
 
