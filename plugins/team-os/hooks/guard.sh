@@ -48,6 +48,7 @@ deny() {
 #     on another line.
 #   - anything we cannot read cleanly (unclosed quote, unterminated heredoc)
 #     prints the command unchanged, so it is checked as before.
+#   (syntax_view below decides when this stripped copy may be used alone.)
 strip_text() {
   local out
   out="$(printf '%s\n' "$1" | awk '
@@ -126,22 +127,56 @@ strip_text() {
   printf '%s' "$out"
 }
 
-# The command as the syntax rules should see it. If the stripped copy hands
-# text to a shell (sh -c "...", eval "...", bash <<EOF, cat <<EOF | sh,
-# ssh host "..."), the quoted text or heredoc body is code, not prose: then
+# The command as the syntax rules should see it. The stripped copy drops
+# quoted prose, which is only safe when nothing in the line runs a quoted
+# string or heredoc body as code (sh -c "...", eval, trap, source, a variable
+# used as the command, flock ... -c, at <<EOF, ssh host "..." and so on).
+# So the line is split into simple commands (at ; && || | & newline and
+# parentheses) and the stripped copy is used ALONE only if every command word
+# is on a short allowlist of commands that never run their arguments as code:
+#   echo printf cat tee jq cd ls mkdir touch true
+#   gh with pr, issue, release, api, label or repo
+#   git with add commit tag notes status log diff show fetch pull push switch
+#     checkout branch merge stash restore reset remote rm mv
+# Leading NAME=value assignments are skipped. A git option before the
+# subcommand (for example -c) and git config/rebase/bisect/filter-branch/
+# submodule are not on the list, because they can run a string as a command.
+# The allowlist is deliberately short. Any other command word, including one
+# we do not know, brings back the old raw check, so the guard stays strict:
 # the stripped copy, the raw command and the raw command with its quote marks
-# blanked (so "git push --force" ends in a space, not a quote) are all
-# checked. A word counts only
-# as a whole word, so "install.sh", "--bash" and "git-sh" do not.
-# The word list cannot be complete (any program can run a string as code).
-# A word on it only brings back the old behaviour: the raw command is checked.
+# blanked (so "git push --force" ends in a space, not a quote) are all checked.
 syntax_view() {
-  local stripped
+  local stripped rest line w i safe=1
   stripped="$(strip_text "$1")"
-  if printf '%s' "$stripped" | grep -Eq '(^|[^[:alnum:]_.-])(sh|bash|zsh|dash|ksh|fish|eval|ssh|su|python[0-9.]*|node|deno|bun|perl|ruby|php|awk|gawk|mawk|xargs|watch|tmux|screen|script|pwsh|powershell)([^[:alnum:]_.-]|$)'; then
-    printf '%s\n%s\n%s' "$stripped" "$1" "$(printf '%s' "$1" | tr "\"'" '  ')"
-  else
+  # Redirections like 2>&1 and &> are not command separators.
+  rest="$(printf '%s' "$stripped" | sed -E 's/[0-9]*[<>]&[0-9-]*//g; s/&>>?//g')"
+  while IFS= read -r line; do
+    # shellcheck disable=SC2206
+    w=($line)
+    i=0
+    while [ "$i" -lt "${#w[@]}" ] && [[ "${w[$i]}" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; do
+      i=$((i + 1))
+    done
+    [ "$i" -ge "${#w[@]}" ] && continue
+    case "${w[$i]}" in
+      echo|printf|cat|tee|jq|cd|ls|mkdir|touch|true) ;;
+      gh)
+        case "${w[$((i + 1))]:-}" in
+          pr|issue|release|api|label|repo) ;;
+          *) safe=0; break ;;
+        esac ;;
+      git)
+        case "${w[$((i + 1))]:-}" in
+          add|commit|tag|notes|status|log|diff|show|fetch|pull|push|switch|checkout|branch|merge|stash|restore|reset|remote|rm|mv) ;;
+          *) safe=0; break ;;
+        esac ;;
+      *) safe=0; break ;;
+    esac
+  done < <(printf '%s\n' "$rest" | tr ';&|()' '\n\n\n\n\n')
+  if [ "$safe" -eq 1 ]; then
     printf '%s' "$stripped"
+  else
+    printf '%s\n%s\n%s' "$stripped" "$1" "$(printf '%s' "$1" | tr "\"'" '  ')"
   fi
 }
 
