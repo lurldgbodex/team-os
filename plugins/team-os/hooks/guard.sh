@@ -33,6 +33,42 @@ deny() {
   exit 0
 }
 
+# A PR, issue or commit body often mentions a blocked pattern as prose (a
+# force push, a piped installer). That text is data, not a command. This
+# accepts ONE fixed command shape and, only then, prints its first line so the
+# syntax rules can skip the heredoc body. The shape:
+#   HEAD <<'WORD'
+#   ...body...
+#   WORD
+# where HEAD is gh pr|issue create|comment|edit, git commit, or cat > PATH,
+# with plain arguments (no expansions, no backslashes), WORD is the last line
+# and no body line equals WORD. Anything that does not match exactly returns 1
+# and the caller checks the raw command. This narrow shape replaced a general
+# parser on purpose: the shell grammar is too big to mirror safely.
+heredoc_head() {
+  local sq="'" dq='"' bs='\' bt='`' bad tok args re head word line last i
+  local -a lines=()
+  bad="$dq$sq$bs\$$bt"
+  tok="([A-Za-z0-9_./:=,@+%-]|$dq[^$bad]*$dq|$sq[^$bad]*$sq)+"
+  args="( +$tok)*"
+  re="^(gh (pr|issue) (create|comment|edit)$args|git commit$args|cat >>? ?[A-Za-z0-9_./-]+) <<'[A-Za-z_][A-Za-z0-9_]*'$"
+  while IFS= read -r line || [ -n "$line" ]; do lines+=("$line"); done <<< "${1%$'\n'}"
+  [ "${#lines[@]}" -ge 2 ] || return 1
+  head="${lines[0]}"
+  [[ "$head" =~ $re ]] || return 1
+  # In bash, cat > /dev/tcp/host/port sends the body over the network.
+  case "$head" in
+    "cat >/dev/"*|"cat > /dev/"*|"cat >>/dev/"*|"cat >> /dev/"*) return 1 ;;
+  esac
+  word="${head##*<<$sq}"; word="${word%$sq}"
+  last=$(( ${#lines[@]} - 1 ))
+  [ "${lines[$last]}" = "$word" ] || return 1
+  for (( i = 1; i < last; i++ )); do
+    [ "${lines[$i]}" = "$word" ] && return 1
+  done
+  printf '%s' "$head"
+}
+
 # Is this file name a secret? ".env.example" is a committed template without
 # secrets, so it is readable. Shared by the Read/Edit/Write and Grep rules.
 is_secret_name() {
@@ -61,13 +97,18 @@ case "$tool" in
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 
+    # Rules 1, 2 and 4 look at syntax, so they skip a PR, issue or commit body
+    # (see heredoc_head). Rules 3 and 5 always see the raw command.
+    syn="$cmd"
+    head="$(heredoc_head "$cmd")" && syn="$head"
+
     # 1. Force pushes rewrite shared history.
-    if printf '%s' "$cmd" | grep -Eq 'git[[:space:]]+push([^|;&]*)[[:space:]](-f|--force|--force-with-lease)([[:space:]]|$)'; then
+    if printf '%s' "$syn" | grep -Eq 'git[[:space:]]+push([^|;&]*)[[:space:]](-f|--force|--force-with-lease)([[:space:]]|$)'; then
       deny "no-force-push" "force pushes are blocked. Open a PR or ask a teammate to help with history rewrites."
     fi
 
     # 2. Piped installers run unreviewed code.
-    if printf '%s' "$cmd" | grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z|da)?sh'; then
+    if printf '%s' "$syn" | grep -Eq '(curl|wget)[^|]*\|[[:space:]]*(sudo[[:space:]]+)?(ba|z|da)?sh'; then
       deny "no-piped-installers" "piping a download into a shell is blocked. Download the script, read it, then run it."
     fi
 
@@ -77,7 +118,7 @@ case "$tool" in
     fi
 
     # 4. Infrastructure deploys go through CI, not a laptop.
-    if printf '%s' "$cmd" | grep -Eq '(^|[;&|[:space:]])(cdk|terraform|pulumi)[[:space:]]+(deploy|apply|up)([[:space:]]|$)'; then
+    if printf '%s' "$syn" | grep -Eq '(^|[;&|[:space:]])(cdk|terraform|pulumi)[[:space:]]+(deploy|apply|up)([[:space:]]|$)'; then
       deny "no-local-deploy" "infrastructure deploys run in CI. Open a PR instead."
     fi
 
