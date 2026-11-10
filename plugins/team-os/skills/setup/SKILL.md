@@ -1,6 +1,6 @@
 ---
 name: setup
-description: Post-install check for Team OS. Verifies prerequisites, connectors and rules, then gives a one-minute tour. Safe to re-run.
+description: Post-install check for Team OS. Verifies prerequisites, connectors, rules and the guard hook, then gives a one-minute tour. Safe to re-run.
 ---
 
 # Team OS setup check
@@ -10,8 +10,13 @@ Run these checks and report a short pass/fail list. Fix nothing without asking.
 1. **Version**: run `git -C "${CLAUDE_PLUGIN_ROOT}/../.." rev-parse --short HEAD` and report it.
 2. **Tools**: check `git`, `gh` (and `gh auth status`), and `jq` are installed.
 3. **Connectors**: run `claude mcp list` and report whether GitHub is connected. If it is missing, tell the engineer to open claude.ai/settings/connectors, connect it, then run `/mcp`. The connector is optional: without it the skills fall back to the `gh` CLI. Do not report Atlassian (Jira) as a problem; the team tracks work in GitHub Issues.
-4. **Rules**: read `~/.claude/settings.json` and confirm the Team OS deny/ask rules are present (`jq '.permissions.deny' ~/.claude/settings.json`).
+4. **Rules**: read `~/.claude/settings.json` and confirm the Team OS deny/ask rules are present (`jq '.permissions.deny' ~/.claude/settings.json`). These are only the rules from `${CLAUDE_PLUGIN_ROOT}/policy/rules/*.json`; compare against those files. The hard blocks (force pushes, piped installers, production databases, local deploys, secret files) live in the guard hook, not here, so do not report them as missing from settings. Step 6 checks them.
 5. **Personal folder**: confirm `~/.claude/team-os/personal/` exists and is a git repo.
+6. **Guard hook**: confirm the hard blocks are active.
+   - The plugin is enabled: `jq '.enabledPlugins | with_entries(select(.key | startswith("team-os@")))' ~/.claude/settings.json` shows `true`.
+   - The hook is registered: `jq -r '.hooks.PreToolUse[] | "\(.matcher) \(.hooks[].command)"' "${CLAUDE_PLUGIN_ROOT}/hooks/hooks.json"` lists `guard.sh` for `Bash|Read|Edit|Write|Grep`, and `test -x "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh"` passes.
+   - The hook blocks: `printf '%s' '{"tool_name":"Read","tool_input":{"file_path":"/tmp/id_rsa"}}' | "${CLAUDE_PLUGIN_ROOT}/hooks/guard.sh" | jq -r '.hookSpecificOutput.permissionDecision // "allowed"'` prints `deny`.
+   - Run exactly that test. Do not test with force-push, `curl | sh` or `.env` text in the command: the live guard blocks the test command itself.
 
 Then give the one-minute tour:
 
