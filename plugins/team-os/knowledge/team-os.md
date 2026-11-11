@@ -7,7 +7,7 @@ Team OS is a Claude Code plugin distributed from a git repository.
 - **Marketplace** (`.claude-plugin/marketplace.json` at the repo root): lets Claude Code install the plugin from the cloned folder.
 - **Plugin** (`plugins/team-os/`): agents, skills, hooks, policy and this knowledge bundle.
 - **Agents**: `librarian` (reads knowledge, Haiku) `coder` (implements scoped changes, Sonnet) and `reviewer` (read-only code review, Sonnet).
-- **Skills**: `/team-os:create-ticket` (idea to GitHub issue), `/team-os:implement-ticket <issue>` (issue to draft PR), `/team-os:review-pr <PR>` (code review) and `/team-os:setup` (post-install check) and `/team-os:stats [weeks]` (guard blocks and PRs that close an issue).
+- **Skills**: `/team-os:create-ticket` (idea to GitHub issue), `/team-os:implement-ticket <issue>` (issue to draft PR), `/team-os:review-pr <PR>` (code review), `/team-os:setup` (post-install check) and `/team-os:stats [weeks]` (guard blocks and PRs that close an issue).
 - **Hooks**: SessionStart prints the version and warns when behind; PreToolUse blocks dangerous actions.
 - **Status line**: model, context %, optional usage, version.
 - **Policy**: one small file per rule, merged into the engineer's own Claude settings, reversible.
