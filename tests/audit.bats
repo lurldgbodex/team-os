@@ -19,7 +19,9 @@ teardown() {
   [ "$status" -eq 0 ]
   [ "$(wc -l < "$AUDIT")" -eq 1 ]
   jq -e '.rule == "no-force-push" and .tool == "Bash"
-    and has("ts") and has("rule") and has("tool") and has("repo") and has("version")' "$AUDIT"
+    and has("ts") and has("rule") and has("tool") and has("repo") and has("version")
+    and (.version | type == "string")
+    and (.ts | test("^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$"))' "$AUDIT"
 }
 
 @test "the audit line holds no command text or file path" {
