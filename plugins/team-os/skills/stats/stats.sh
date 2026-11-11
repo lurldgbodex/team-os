@@ -4,7 +4,14 @@
 set -u
 
 FILE="${CLAUDE_HOME:-$HOME/.claude}/team-os/audit.jsonl"
-N="${1:-8}"
+N=8
+if [ $# -ge 1 ]; then
+  if [[ "$1" =~ ^[1-9][0-9]*$ ]]; then
+    N="$1"
+  else
+    echo "stats: \"$1\" is not a positive whole number, using 8 weeks" >&2
+  fi
+fi
 # TEAM_OS_NOW (epoch seconds) is for tests, so they do not depend on the real clock.
 NOW="${TEAM_OS_NOW:-$(date +%s)}"
 
@@ -13,10 +20,10 @@ if [ ! -s "$FILE" ]; then
   exit 0
 fi
 
-# Lines that parse and fall in the window; malformed lines are skipped.
+# Lines that parse and fall in the window (not in the future); malformed lines are skipped.
 RECENT="$(jq -R 'fromjson? // empty' "$FILE" \
   | jq -c --argjson n "$N" --argjson now "$NOW" \
-    'select((.ts? | fromdateiso8601?) >= ($now - $n * 604800))')"
+    'select((.ts? | fromdateiso8601?) as $t | $t >= ($now - $n * 604800) and $t <= $now)')"
 
 if [ -z "$RECENT" ]; then
   echo "No guard blocks in the last $N weeks"

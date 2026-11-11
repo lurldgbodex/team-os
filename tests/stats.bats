@@ -109,3 +109,25 @@ line() { # ts rule repo(json)
   run --separate-stderr "$STATS"
   [ "$(cksum < "$AUDIT")" = "$before" ]
 }
+
+@test "a future-dated line is not counted" {
+  {
+    line 2026-11-10T09:00:00Z no-force-push
+    line 2027-01-01T09:00:00Z future-rule
+  } > "$AUDIT"
+  run --separate-stderr "$STATS"
+  [ "$status" -eq 0 ]
+  [[ "$output" == *"no-force-push"* ]]
+  [[ "$output" != *"future-rule"* ]]
+}
+
+@test "a bad week count falls back to 8 weeks with a warning" {
+  line 2026-11-10T09:00:00Z no-force-push > "$AUDIT"
+  for arg in abc 0 -3; do
+    run --separate-stderr "$STATS" "$arg"
+    [ "$status" -eq 0 ]
+    [[ "$output" == *"Guard blocks in the last 8 weeks"* ]]
+    [[ "$stderr" == *"stats: \"$arg\" is not a positive whole number, using 8 weeks"* ]]
+    [[ "$stderr" != *"jq: error"* ]]
+  done
+}
