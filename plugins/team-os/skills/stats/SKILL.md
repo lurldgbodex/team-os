@@ -13,7 +13,7 @@ Let N be the number of weeks from the argument (default 8).
 1. **Audit file**: it is `${CLAUDE_HOME:-$HOME/.claude}/team-os/audit.jsonl` (call it FILE). If it is missing or empty, say "No guard blocks recorded yet" and go to step 3.
 2. **Guard blocks** in the last N weeks. Read only the lines that parse and fall in the window, and skip malformed lines:
    ```
-   RECENT() { jq -R 'fromjson? // empty' "$FILE" | jq -c --argjson n "$N" 'select((.ts | fromdateiso8601) >= (now - $n * 604800))'; }
+   RECENT() { jq -R 'fromjson? // empty' "$FILE" | jq -c --argjson n "$N" 'select((.ts? | fromdateiso8601?) >= (now - $n * 604800))'; }
    ```
    - Per rule, most blocks first: `RECENT | jq -r '.rule' | sort | uniq -c | sort -rn`
    - Per ISO week: `RECENT | jq -r '.ts | strptime("%Y-%m-%dT%H:%M:%SZ") | strftime("%G-W%V")' | sort | uniq -c`
