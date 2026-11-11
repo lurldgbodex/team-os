@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 # Shared helpers for the Team OS scripts. Source this file, do not run it.
+# The variables below are used by the scripts that source this file.
+# shellcheck disable=SC2034
 
 REPO_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 MARKETPLACE_NAME="teamdata"
