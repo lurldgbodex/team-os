@@ -6,7 +6,7 @@ load test_helper
   run guard_bash "git push --force origin main"
   [ "$status" -eq 0 ]
   [[ "$output" == *'"permissionDecision": "deny"'* ]]
-  [[ "$output" == *"THIS-SHOULD-FAIL"* ]]
+  [[ "$output" == *"no-force-push"* ]]
 }
 
 @test "guard blocks git push -f" {
