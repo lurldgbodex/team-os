@@ -158,7 +158,9 @@ case "$tool" in
     #    SOURCE, that is, followed by whitespace and another argument in the
     #    same segment. "cp .env /tmp/x" is blocked; "cp .env.example .env"
     #    is fine (the template is stripped first, leaving ".env" as the last
-    #    argument, the destination). Limit: "cp -t dir .env" still gets
+    #    argument, the destination). Redirects and a trailing comment are
+    #    removed before this check, so "cp .env.example .env 2>/dev/null" or
+    #    "... # setup" is still fine. Limit: "cp -t dir .env" still gets
     #    through, because there the secret is the last argument.
     scan="$cmd"
     while :; do
@@ -170,10 +172,11 @@ case "$tool" in
     env_name='\.env(\.[A-Za-z0-9_.-]+)?'
     key_name='(id_rsa|id_ed25519|\.pem|credentials)'
     cp_word='(^|[^A-Za-z0-9_])cp[[:space:]]+'
+    cp_scan="$(printf '%s' "$scan" | sed -E 's/[0-9]*(>>?|<)&?[[:space:]]*[^[:space:]|;&]*//g; s/(^|[[:space:]])#.*$//')"
     if printf '%s' "$scan" | grep -Eq "(${readers})[[:space:]]([^|;&]*[[:space:]/=,:\"'])?${env_name}([[:space:],:\"']|\$)" \
       || printf '%s' "$scan" | grep -Eq "(${readers})[[:space:]]+[^|;&]*${key_name}([[:space:]\"']|\$)" \
-      || printf '%s' "$scan" | grep -Eq "${cp_word}([^|;&]*[[:space:]/=,:\"'])?${env_name}[[:space:],:\"']+[^[:space:]|;&]" \
-      || printf '%s' "$scan" | grep -Eq "${cp_word}[^|;&]*${key_name}[[:space:]\"']+[^[:space:]|;&]"; then
+      || printf '%s' "$cp_scan" | grep -Eq "${cp_word}([^|;&]*[[:space:]/=,:\"'])?${env_name}[[:space:],:\"']+[^[:space:]|;&]" \
+      || printf '%s' "$cp_scan" | grep -Eq "${cp_word}[^|;&]*${key_name}[[:space:]\"']+[^[:space:]|;&]"; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi
     ;;

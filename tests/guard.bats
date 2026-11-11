@@ -418,6 +418,17 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [[ "$output" == *"no-secret-files"* ]]
   run guard_bash "cp ~/.ssh/id_rsa /tmp/k"
   [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cp .env /tmp/x 2>/dev/null"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows cp .env.example .env with a redirect or comment after it" {
+  run guard_bash "cp .env.example .env 2>/dev/null"
+  [ -z "$output" ]
+  run guard_bash "cp .env.example .env >/dev/null"
+  [ -z "$output" ]
+  run guard_bash "cp .env.example .env # setup"
+  [ -z "$output" ]
 }
 
 @test "guard blocks more readers of key files" {
