@@ -21,6 +21,7 @@ seven="$(printf '%s' "$input" | jq -r '.rate_limits.seven_day.used_percentage //
 # Version = short git commit of the Team OS checkout.
 CONFIG="${HOME}/.claude/team-os/config.env"
 REPO_DIR=""
+# shellcheck disable=SC1090
 [ -f "$CONFIG" ] && . "$CONFIG"
 version="$(git -C "${REPO_DIR:-.}" rev-parse --short HEAD 2>/dev/null || echo dev)"
 
