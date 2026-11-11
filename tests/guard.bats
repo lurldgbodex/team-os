@@ -458,6 +458,10 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
 @test "guard blocks more readers of key files" {
   run guard_bash "base64 ~/.ssh/id_ed25519"
   [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "awk 1 ~/.ssh/id_rsa"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "sed -n p server.pem"
+  [[ "$output" == *"no-secret-files"* ]]
 }
 
 @test "guard allows the new readers where no secret is read" {
