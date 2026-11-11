@@ -21,8 +21,39 @@ command -v jq >/dev/null 2>&1 || exit 0
 
 tool="$(printf '%s' "$input" | jq -r '.tool_name // empty')"
 
+# Append one line per block to a local audit file (never sent anywhere): time,
+# rule id, tool, repo name and Team OS version. It NEVER records the command,
+# file paths, globs or the reason text. It runs in a subshell with all output
+# dropped, so a logging failure can never change or delay the deny decision.
+audit() {
+  (
+    state="${CLAUDE_HOME:-$HOME/.claude}/team-os"
+    cwd="$(printf '%s' "$input" | jq -r '.cwd // empty')"
+    [ -n "$cwd" ] || cwd="$PWD"
+    top="$(git -C "$cwd" rev-parse --show-toplevel 2>/dev/null)" || top=""
+    repo=""
+    [ -n "$top" ] && repo="$(basename "$top")"
+
+    REPO_DIR=""
+    # shellcheck disable=SC1091
+    [ -f "$state/config.env" ] && . "$state/config.env"
+    if [ -z "${REPO_DIR:-}" ]; then
+      REPO_DIR="$(cd "${CLAUDE_PLUGIN_ROOT:-$(dirname "${BASH_SOURCE[0]}")/..}/../.." 2>/dev/null && pwd)"
+    fi
+    version="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null)" || version=""
+
+    mkdir -p "$state"
+    jq -nc --arg ts "$(date -u +%Y-%m-%dT%H:%M:%SZ)" --arg rule "$1" --arg tool "$tool" \
+      --arg repo "$repo" --arg version "$version" \
+      '{ts:$ts, rule:$rule, tool:$tool,
+        repo:(if $repo == "" then null else $repo end),
+        version:(if $version == "" then null else $version end)}' >> "$state/audit.jsonl"
+  ) >/dev/null 2>&1 || true
+}
+
 deny() {
   # $1 = rule id, $2 = human reason
+  audit "$1"
   jq -n --arg reason "Team OS guard [$1]: $2" '{
     hookSpecificOutput: {
       hookEventName: "PreToolUse",

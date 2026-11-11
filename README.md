@@ -15,8 +15,9 @@ One install gives every engineer the same Claude Code toolkit: shared subagents,
 | Skill | `/team-os:implement-ticket 42` | Issue → plan → code → tests → draft PR that closes it → self-review |
 | Skill | `/team-os:review-pr 57` | PR + linked issue → findings by severity → optional posted review |
 | Skill | `/team-os:setup` | Post-install check and one-minute tour. Safe to re-run |
+| Skill | `/team-os:stats [weeks]` | Guard blocks by rule and week from your local audit log, plus your PRs that close an issue |
 | Hook | session start | Prints `Team OS · <version>` and warns when your checkout is behind |
-| Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access |
+| Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access. Each block is logged locally to `~/.claude/team-os/audit.jsonl` (no command text) |
 | Status line | | Model · context % · optional 5h/7d usage · version. Yellow at 70%, red at 90% |
 | Policy | `plugins/team-os/policy/` | One small file per rule, merged into your own Claude settings, reversible |
 | Knowledge | `plugins/team-os/knowledge/` | Shared facts, `index.md` first |
@@ -50,6 +51,7 @@ Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh 
 - `/team-os:create-ticket add FX rate caching` drafts a GitHub issue and creates it once you approve.
 - `/team-os:implement-ticket 42` takes issue #42 to a draft pull request that closes it.
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
+- `/team-os:stats` shows how often the guard blocked something and how many of your PRs closed an issue.
 - Try asking Claude to read `.env`: the guard blocks it and says why.
 - Tickets are GitHub Issues. The GitHub connector is optional (connect it at claude.ai/settings/connectors, then run `/mcp`); without it the skills use the `gh` CLI.
 
@@ -85,7 +87,7 @@ install.sh / uninstall.sh / update.sh   thin entry points
 plugins/team-os/
   .claude-plugin/plugin.json            plugin manifest
   agents/                               librarian, coder, reviewer
-  skills/                               create-ticket, implement-ticket, review-pr, setup
+  skills/                               create-ticket, implement-ticket, review-pr, setup, stats
   hooks/                                hooks.json, session-start.sh, guard.sh, statusline.sh
   knowledge/                            shared knowledge bundle (index.md first)
   policy/                               rules/*.json and behaviour/*.md, one file per rule

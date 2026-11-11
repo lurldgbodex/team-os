@@ -44,4 +44,4 @@ fi
 # Config (keep the personal folder and the log)
 rm -f "$CONFIG_FILE"
 
-ok "Team OS uninstalled. Your personal notes are kept at $PERSONAL_DIR"
+ok "Team OS uninstalled. Your personal notes are kept at $PERSONAL_DIR and the audit log at $STATE_DIR/audit.jsonl"
