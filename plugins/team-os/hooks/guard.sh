@@ -108,12 +108,13 @@ case "$tool" in
     #    like "git commit -m 'push -f'" does not), "push", and then either
     #      - a force flag: -f, a short cluster containing f (-fu, -uf),
     #        --force, or --force-with-lease with or without =<ref>
-    #        (long options like --follow-tags are not flags), or
-    #      - a refspec starting with "+" (+main, +HEAD:main), which forces
-    #        that ref without any flag.
+    #        (long options like --follow-tags are not flags), ending at
+    #        whitespace, "|", ";", "&" or the end, or
+    #      - a refspec starting with "+", quoted or not (+main, "+main",
+    #        +HEAD:main), which forces that ref without any flag.
     git_push='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]|;&]+|-[^[:space:]|;&]+))*[[:space:]]+push([^|;&]*)[[:space:]]'
-    force_flag='(-[A-Za-z0-9]*f[A-Za-z0-9]*|--force|--force-with-lease(=[^[:space:]]*)?)([[:space:]]|$)'
-    force_refspec='\+[^[:space:]|;&]'
+    force_flag='(-[A-Za-z0-9]*f[A-Za-z0-9]*|--force|--force-with-lease(=[^[:space:]|;&]*)?)([[:space:]|;&]|$)'
+    force_refspec='["'\'']?\+[^[:space:]|;&]'
     if printf '%s' "$syn" | grep -Eq "${git_push}(${force_flag}|${force_refspec})"; then
       deny "no-force-push" "force pushes are blocked. Open a PR or ask a teammate to help with history rewrites."
     fi

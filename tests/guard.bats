@@ -37,6 +37,26 @@ load test_helper
 @test "guard blocks --force-with-lease with a value" {
   run guard_bash "git push --force-with-lease=main origin main"
   [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push --force-with-lease origin main"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git -C repo push --force-with-lease=main origin main"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a force flag followed directly by a separator" {
+  run guard_bash "git push origin main -f;"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push -f&& echo x"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push --force|cat"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a quoted + refspec" {
+  run guard_bash "git push origin \"+main\""
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push origin '+main'"
+  [[ "$output" == *"no-force-push"* ]]
 }
 
 @test "guard blocks a force push after git global options" {
@@ -56,6 +76,10 @@ load test_helper
   run guard_bash "git push origin feat/fix-thing"
   [ -z "$output" ]
   run guard_bash "git commit -m \"push -f fix\""
+  [ -z "$output" ]
+  run guard_bash "git push origin main; echo done"
+  [ -z "$output" ]
+  run guard_bash "git push -u origin feat/x && echo ok"
   [ -z "$output" ]
 }
 
