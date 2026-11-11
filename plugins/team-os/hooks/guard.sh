@@ -49,7 +49,7 @@ heredoc_head() {
   local sq="'" dq='"' bs='\' bt='`' bad tok args re head word line last i
   local -a lines=()
   bad="$dq$sq$bs\$$bt"
-  tok="([A-Za-z0-9_./:=,@+%-]|$dq[^$bad]*$dq|$sq[^$bad]*$sq)+"
+  tok="([A-Za-z0-9_./:=,@+%-]|${dq}[^$bad]*$dq|${sq}[^$bad]*$sq)+"
   args="( +$tok)*"
   re="^(gh (pr|issue) (create|comment|edit)$args|git commit$args|cat >>? ?[A-Za-z0-9_./-]+) <<'[A-Za-z_][A-Za-z0-9_]*'$"
   while IFS= read -r line || [ -n "$line" ]; do lines+=("$line"); done <<< "${1%$'\n'}"
