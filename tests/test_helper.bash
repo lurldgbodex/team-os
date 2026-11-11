@@ -23,16 +23,17 @@ teardown_sandbox() {
   rm -rf "$SANDBOX"
 }
 
+# The guard helpers set CLAUDE_HOME so guard tests never write to the real audit file.
 # Run guard.sh with a Bash command and print its stdout.
 guard_bash() {
-  jq -n --arg c "$1" '{tool_name:"Bash", tool_input:{command:$c}}' | "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
+  jq -n --arg c "$1" '{tool_name:"Bash", tool_input:{command:$c}}' | CLAUDE_HOME="$BATS_TEST_TMPDIR/claude" "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
 }
 
 guard_read() {
-  jq -n --arg p "$1" '{tool_name:"Read", tool_input:{file_path:$p}}' | "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
+  jq -n --arg p "$1" '{tool_name:"Read", tool_input:{file_path:$p}}' | CLAUDE_HOME="$BATS_TEST_TMPDIR/claude" "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
 }
 
 # $1 = path, $2 = optional glob
 guard_grep() {
-  jq -n --arg p "$1" --arg g "${2:-}" '{tool_name:"Grep", tool_input:({pattern:"x", path:$p} + (if $g == "" then {} else {glob:$g} end))}' | "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
+  jq -n --arg p "$1" --arg g "${2:-}" '{tool_name:"Grep", tool_input:({pattern:"x", path:$p} + (if $g == "" then {} else {glob:$g} end))}' | CLAUDE_HOME="$BATS_TEST_TMPDIR/claude" "$REPO_ROOT/plugins/team-os/hooks/guard.sh"
 }
