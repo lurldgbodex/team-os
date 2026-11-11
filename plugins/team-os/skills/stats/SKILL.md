@@ -10,14 +10,8 @@ Show how often the guard blocks and how many of your PRs close an issue. This sk
 
 Let N be the number of weeks from the argument (default 8).
 
-1. **Audit file**: it is `${CLAUDE_HOME:-$HOME/.claude}/team-os/audit.jsonl` (call it FILE). If it is missing or empty, say "No guard blocks recorded yet" and go to step 3.
-2. **Guard blocks** in the last N weeks. Read only the lines that parse and fall in the window, and skip malformed lines:
-   ```
-   RECENT() { jq -R 'fromjson? // empty' "$FILE" | jq -c --argjson n "$N" 'select((.ts? | fromdateiso8601?) >= (now - $n * 604800))'; }
-   ```
-   - Per rule, most blocks first: `RECENT | jq -r '.rule' | sort | uniq -c | sort -rn`
-   - Per ISO week: `RECENT | jq -r '.ts | strptime("%Y-%m-%dT%H:%M:%SZ") | strftime("%G-W%V")' | sort | uniq -c`
-   - Repos with the most blocks (top 5): `RECENT | jq -r '.repo // "(none)"' | sort | uniq -c | sort -rn | head -5`
+1. **Guard blocks**: run `bash <base>/stats.sh <N>`, where `<base>` is this skill's base directory (shown above as "Base directory for this skill"). It reads `${CLAUDE_HOME:-$HOME/.claude}/team-os/audit.jsonl`, skips malformed lines, and prints blocks per rule (most first), per ISO week and the top 5 repos for the last N weeks. If it says "No guard blocks recorded yet", go to step 3.
+2. **Read-only**: do not edit or delete the audit file.
 3. **Pull requests** in the current repo: `gh pr list --author @me --state all --limit 200 --json number,title,state,body,createdAt`. Keep the PRs whose body contains `Closes #` (any letter case, so also `closes #`). Count them by state (open, merged, closed) and list the last 10 with number, title and state. If this is not a GitHub repo or `gh` is not logged in, say so and skip this step.
 4. **Output** two short tables, then one line of interpretation:
    - Table 1: blocks by rule, with a column per week or a separate by-week line.
