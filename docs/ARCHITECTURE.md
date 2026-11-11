@@ -123,6 +123,7 @@ Claude Code blocks the call and shows the reason to Claude and the engineer
 ## Limits and honest caveats
 
 - The guard is **defence in depth, not a sandbox**. A determined user or a cleverly written command can get around pattern matching. Real protection for production still belongs in IAM, CI and network controls.
+- Rule 5 (secret reads in the shell) only knows a fixed list of readers: `cat`, `less`, `more`, `head`, `tail`, `grep`, `source`, `awk`, `sed`, `base64`, `xxd`, `od`, `strings`, `bat`, plus `cp` when the secret is the source. Any other program, or `cp -t <dir> .env`, gets around it. This is why secrets belong outside the repo working tree.
 - A hook cannot switch the session's model. A "model guide" can only advise or ask the engineer to run `/model`.
 - Plugin and CLI subcommands (`claude plugin ...`) and hook JSON formats evolve. The installer reports failures and prints the manual `/plugin` command as a fallback. Verify against the current docs when upgrading Claude Code.
 - Usage percentages (5h/7d) depend on fields Claude Code provides to the status line. They are shown only when present.
