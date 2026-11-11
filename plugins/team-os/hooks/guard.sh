@@ -102,8 +102,20 @@ case "$tool" in
     syn="$cmd"
     head="$(heredoc_head "$cmd")" && syn="$head"
 
-    # 1. Force pushes rewrite shared history.
-    if printf '%s' "$syn" | grep -Eq 'git[[:space:]]+push([^|;&]*)[[:space:]](-f|--force|--force-with-lease)([[:space:]]|$)'; then
+    # 1. Force pushes rewrite shared history. Within one command segment (no
+    #    "|", ";" or "&") this catches "git", any global options (-C and -c
+    #    take one value, so "git -C repo push -f" counts, while a subcommand
+    #    like "git commit -m 'push -f'" does not), "push", and then either
+    #      - a force flag: -f, a short cluster containing f (-fu, -uf),
+    #        --force, or --force-with-lease with or without =<ref>
+    #        (long options like --follow-tags are not flags), ending at
+    #        whitespace, "|", ";", "&" or the end, or
+    #      - a refspec starting with "+", quoted or not (+main, "+main",
+    #        +HEAD:main), which forces that ref without any flag.
+    git_push='git([[:space:]]+(-[Cc][[:space:]]+[^[:space:]|;&]+|-[^[:space:]|;&]+))*[[:space:]]+push([^|;&]*)[[:space:]]'
+    force_flag='(-[A-Za-z0-9]*f[A-Za-z0-9]*|--force|--force-with-lease(=[^[:space:]|;&]*)?)([[:space:]|;&]|$)'
+    force_refspec='["'\'']?\+[^[:space:]|;&]'
+    if printf '%s' "$syn" | grep -Eq "${git_push}(${force_flag}|${force_refspec})"; then
       deny "no-force-push" "force pushes are blocked. Open a PR or ask a teammate to help with history rewrites."
     fi
 
@@ -135,14 +147,37 @@ case "$tool" in
     #    alongside it is still blocked. Only the exact name is exempt:
     #    ".env.example.bak" is blocked. Each pass consumes the separator
     #    shared by two neighbours, so it repeats until nothing changes.
+    #
+    #    Readers: cat less more head tail grep source "." match as before.
+    #    awk sed base64 xxd od strings bat must be a whole word (start of
+    #    line or a character that is not a letter, digit or "_"). This rule
+    #    also scans PR and commit text, and without that boundary "we used
+    #    .env files" would be blocked, because "used" contains "sed". Both
+    #    patterns use the same reader list.
+    #
+    #    cp is checked separately: it is blocked only when the secret is a
+    #    SOURCE, that is, followed by whitespace and another argument in the
+    #    same segment. "cp .env /tmp/x" is blocked; "cp .env.example .env"
+    #    is fine (the template is stripped first, leaving ".env" as the last
+    #    argument, the destination). Redirects and a trailing comment are
+    #    removed before this check, so "cp .env.example .env 2>/dev/null" or
+    #    "... # setup" is still fine. Limit: "cp -t dir .env" still gets
+    #    through, because there the secret is the last argument.
     scan="$cmd"
     while :; do
       next="$(printf '%s' "$scan" | sed -E 's#(^|[[:space:]/=,:"'\''])\.env\.example([[:space:],:"'\'']|$)#\1\2#g')"
       [ "$next" = "$scan" ] && break
       scan="$next"
     done
-    if printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]([^|;&]*[[:space:]/=,:"'\''])?\.env(\.[A-Za-z0-9_.-]+)?([[:space:],:"'\'']|$)' \
-      || printf '%s' "$scan" | grep -Eq '(cat|less|more|head|tail|grep|source|\.)[[:space:]]+[^|;&]*(id_rsa|id_ed25519|\.pem|credentials)([[:space:]"'\'']|$)'; then
+    readers='(cat|less|more|head|tail|grep|source|\.)|((^|[^A-Za-z0-9_])(awk|sed|base64|xxd|od|strings|bat))'
+    env_name='\.env(\.[A-Za-z0-9_.-]+)?'
+    key_name='(id_rsa|id_ed25519|\.pem|credentials)'
+    cp_word='(^|[^A-Za-z0-9_])cp[[:space:]]+'
+    cp_scan="$(printf '%s' "$scan" | sed -E 's/[0-9]*(>>?|<)&?[[:space:]]*[^[:space:]|;&]*//g; s/(^|[[:space:]])#.*$//')"
+    if printf '%s' "$scan" | grep -Eq "(${readers})[[:space:]]([^|;&]*[[:space:]/=,:\"'])?${env_name}([[:space:],:\"']|\$)" \
+      || printf '%s' "$scan" | grep -Eq "(${readers})[[:space:]]+[^|;&]*${key_name}([[:space:]\"']|\$)" \
+      || printf '%s' "$cp_scan" | grep -Eq "${cp_word}([^|;&]*[[:space:]/=,:\"'])?${env_name}[[:space:],:\"']+[^[:space:]|;&]" \
+      || printf '%s' "$cp_scan" | grep -Eq "${cp_word}[^|;&]*${key_name}[[:space:]\"']+[^[:space:]|;&]"; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
     fi
     ;;

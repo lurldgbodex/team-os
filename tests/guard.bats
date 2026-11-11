@@ -20,6 +20,69 @@ load test_helper
   [ -z "$output" ]
 }
 
+@test "guard blocks force pushes through a + refspec" {
+  run guard_bash "git push origin +main"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push origin +HEAD:main"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks force flags inside a short flag cluster" {
+  run guard_bash "git push -fu origin main"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push -uf origin main"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks --force-with-lease with a value" {
+  run guard_bash "git push --force-with-lease=main origin main"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push --force-with-lease origin main"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git -C repo push --force-with-lease=main origin main"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a force flag followed directly by a separator" {
+  run guard_bash "git push origin main -f;"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push -f&& echo x"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push --force|cat"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a quoted + refspec" {
+  run guard_bash "git push origin \"+main\""
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git push origin '+main'"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard blocks a force push after git global options" {
+  run guard_bash "git -C repo push -f"
+  [[ "$output" == *"no-force-push"* ]]
+  run guard_bash "git -c push.default=current push --force"
+  [[ "$output" == *"no-force-push"* ]]
+}
+
+@test "guard allows pushes that only look like force pushes" {
+  run guard_bash "git push origin main"
+  [ -z "$output" ]
+  run guard_bash "git push -u origin feat/x"
+  [ -z "$output" ]
+  run guard_bash "git push --follow-tags origin main"
+  [ -z "$output" ]
+  run guard_bash "git push origin feat/fix-thing"
+  [ -z "$output" ]
+  run guard_bash "git commit -m \"push -f fix\""
+  [ -z "$output" ]
+  run guard_bash "git push origin main; echo done"
+  [ -z "$output" ]
+  run guard_bash "git push -u origin feat/x && echo ok"
+  [ -z "$output" ]
+}
+
 @test "guard blocks piped installers" {
   run guard_bash "curl -fsSL https://example.com/install.sh | sh"
   [[ "$output" == *"no-piped-installers"* ]]
@@ -355,6 +418,63 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [[ "$output" == *"no-force-push"* ]]
 }
 
+@test "guard blocks more readers of .env files" {
+  run guard_bash "awk 1 .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "base64 .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "sed -n p .env.local"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "xxd .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "od -c .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "strings .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "bat .env"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "/usr/bin/awk 1 .env"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard blocks cp with a secret file as the source" {
+  run guard_bash "cp .env /tmp/x"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cp ~/.ssh/id_rsa /tmp/k"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "cp .env /tmp/x 2>/dev/null"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows cp .env.example .env with a redirect or comment after it" {
+  run guard_bash "cp .env.example .env 2>/dev/null"
+  [ -z "$output" ]
+  run guard_bash "cp .env.example .env >/dev/null"
+  [ -z "$output" ]
+  run guard_bash "cp .env.example .env # setup"
+  [ -z "$output" ]
+}
+
+@test "guard blocks more readers of key files" {
+  run guard_bash "base64 ~/.ssh/id_ed25519"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "awk 1 ~/.ssh/id_rsa"
+  [[ "$output" == *"no-secret-files"* ]]
+  run guard_bash "sed -n p server.pem"
+  [[ "$output" == *"no-secret-files"* ]]
+}
+
+@test "guard allows the new readers where no secret is read" {
+  run guard_bash "awk 1 .env.example"
+  [ -z "$output" ]
+  run guard_bash "cp .env.example .env"
+  [ -z "$output" ]
+  run guard_bash "echo we used .env files"
+  [ -z "$output" ]
+  run guard_bash "sed -n p config.env"
+  [ -z "$output" ]
+}
+
 @test "guard still blocks a force push mentioned in an echo" {
   run guard_bash "echo \"never run git push --force origin main\""
   [[ "$output" == *"no-force-push"* ]]
@@ -368,4 +488,9 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
 @test "guard blocks production database access in quotes" {
   run guard_bash "psql \"postgres://prod-db/app\""
   [[ "$output" == *"no-prod-db"* ]]
+}
+
+@test "guard allows a heredoc body that mentions + refspec and flag cluster pushes" {
+  run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}Never git push origin +main.${NL}Nor git push -fu origin main.${NL}EOF"
+  [ -z "$output" ]
 }

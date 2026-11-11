@@ -123,6 +123,8 @@ Claude Code blocks the call and shows the reason to Claude and the engineer
 ## Limits and honest caveats
 
 - The guard is **defence in depth, not a sandbox**. A determined user or a cleverly written command can get around pattern matching. Real protection for production still belongs in IAM, CI and network controls.
+- Rule 5 (secret reads in the shell) only knows a fixed list of readers: `cat`, `less`, `more`, `head`, `tail`, `grep`, `source`, `awk`, `sed`, `base64`, `xxd`, `od`, `strings`, `bat`, plus `cp` when the secret is the source. Any other program, or `cp -t <dir> .env`, gets around it. This is why secrets belong outside the repo working tree.
+- The force-push rule treats only `-C` and `-c` as git options with a separate value, so `git --git-dir x push -f` or a quoted value with spaces (`git -C "my repo" push -f`) gets through. Redirects with no space, such as `cat <.env`, get through rule 5. The other way round, prose in a `-m` message can trip a rule (for example "git push +1"); write long messages to a file and use `-F`.
 - A hook cannot switch the session's model. A "model guide" can only advise or ask the engineer to run `/model`.
 - Plugin and CLI subcommands (`claude plugin ...`) and hook JSON formats evolve. The installer reports failures and prints the manual `/plugin` command as a fallback. Verify against the current docs when upgrading Claude Code.
 - Usage percentages (5h/7d) depend on fields Claude Code provides to the status line. They are shown only when present.
