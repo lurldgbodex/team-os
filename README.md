@@ -87,7 +87,7 @@ install.sh / uninstall.sh / update.sh   thin entry points
 plugins/team-os/
   .claude-plugin/plugin.json            plugin manifest
   agents/                               librarian, coder, reviewer
-  skills/                               create-ticket, implement-ticket, review-pr, setup
+  skills/                               create-ticket, implement-ticket, review-pr, setup, stats
   hooks/                                hooks.json, session-start.sh, guard.sh, statusline.sh
   knowledge/                            shared knowledge bundle (index.md first)
   policy/                               rules/*.json and behaviour/*.md, one file per rule
