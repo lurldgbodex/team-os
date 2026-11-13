@@ -61,7 +61,7 @@ Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh 
 ./update.sh        # macOS / Linux
 ```
 
-A plain `git pull` in this folder does the same: the installer adds a `post-merge` hook that refreshes the plugin and rules, so a new rule reaches you without re-running the installer. New Claude Code sessions pick up the new version. The version is the git commit.
+A plain `git pull` in this folder does the same: the installer adds a `post-merge` hook that refreshes the plugin and rules, so a new rule reaches you without re-running the installer. New Claude Code sessions pick up the new version. The version is the checkout's git commit; the `version` in `plugin.json` does not decide updates (see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)).
 
 ## Uninstall
 

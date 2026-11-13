@@ -16,7 +16,7 @@ Team OS is a Claude Code plugin distributed from a git repository.
 
 ## Updates
 
-`git pull` in the Team OS folder runs a post-merge hook that refreshes the marketplace and plugin, and re-applies policy. New Claude Code sessions use the new version. The version is the git commit.
+`git pull` in the Team OS folder runs a post-merge hook that refreshes the marketplace and plugin, and re-applies policy. New Claude Code sessions use the new version. The version is the checkout's git commit; the `version` in `plugin.json` does not decide updates (see docs/ARCHITECTURE.md in the Team OS repo).
 
 ## Removing it
 
