@@ -32,6 +32,10 @@ Engineers clone one repo and run one installer. After that, a `git pull` is the 
 ### 1. Marketplace and plugin
 `.claude-plugin/marketplace.json` at the repo root declares a marketplace (`teamdata`) with one plugin (`team-os`) whose source is `./plugins/team-os`. Registering the cloned folder as a marketplace lets Claude Code install and update the plugin from local git, with no publishing step.
 `plugin.json` is the manifest: name, version, description.
+
+How updates are detected: the `version` in `plugin.json` (kept equal to the one in `marketplace.json` by `bin/hygiene.sh` check 6) is cosmetic here. Team OS is registered as a directory marketplace, so Claude Code loads the plugin's files from the checkout at every session start, whatever the version says. See https://code.claude.com/docs/en/plugins/loading.md, sections "Versions and updates" and "In-place and copied plugins" (checked 2026-11-13).
+If Team OS is ever installed from a git or hosted marketplace, Claude Code copies the plugin into a cache named by version. Then the version must be bumped on every plugin change, or removed so it falls back to the commit SHA.
+
 Only `plugin.json` lives inside `.claude-plugin/`. Agents, skills and hooks sit at the plugin root.
 
 ### 2. Subagents (`agents/*.md`)
@@ -91,10 +95,10 @@ post-merge hook ─▶ bin/refresh.sh
       └─ bin/apply-policy.sh  (re-merge rules, idempotent)
       │
       ▼
-next Claude Code session loads the new version
+next Claude Code session loads the plugin files from the checkout
 ```
 
-The version is the git commit; `session-start.sh` shows it.
+The version people see is the checkout's git commit, shown by `session-start.sh`. It is not the `plugin.json` version.
 
 ## Data flow: a guarded action
 
