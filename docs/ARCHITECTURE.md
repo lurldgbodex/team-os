@@ -35,6 +35,7 @@ Engineers clone one repo and run one installer. After that, a `git pull` is the 
 
 How updates are detected: the `version` in `plugin.json` (kept equal to the one in `marketplace.json` by `bin/hygiene.sh` check 6) is not used to detect updates here. Team OS is registered as a directory marketplace, so Claude Code loads the plugin's files from the checkout at every session start. The docs say a plugin from a local directory marketplace "loads its current source files at every session start, whatever its version string says". See https://code.claude.com/docs/en/plugins/loading.md, sections "Versions and updates" and "In-place and copied plugins" (checked 2026-11-13).
 This matches what we saw locally: the stale cache copy `~/.claude/plugins/cache/teamdata/team-os/0.1.0` has only 2 skills, while a session on 2026-11-13 loaded all 5 skills from `plugins/team-os/skills/` in the checkout, with the version unchanged.
+`plugin install` still records the plugin and creates a cache entry named by version, but for a directory marketplace Claude Code loads the files from the checkout, not that copy (per the cited docs; the stale 0.1.0 copy shows this).
 If Team OS is ever installed from a git or hosted marketplace, Claude Code copies the plugin into a cache named by version. Then the version must be bumped on every plugin change, or removed so it falls back to the commit SHA.
 
 Only `plugin.json` lives inside `.claude-plugin/`. Agents, skills and hooks sit at the plugin root.
@@ -100,7 +101,7 @@ next Claude Code session loads the plugin files from the checkout
 ```
 
 The version people see is the checkout's git commit, shown by `session-start.sh`. It is not the `plugin.json` version.
-`refresh.sh` still runs both `claude plugin` commands. For a directory marketplace they do not change which files load, but they keep the marketplace listing current and would matter for a copied install (see section 1).
+`refresh.sh` still runs both `claude plugin` commands. For a directory marketplace they do not change which files load (per the docs cited in section 1), but they keep the marketplace listing current and would matter for a copied install (see section 1).
 
 ## Data flow: a guarded action
 
