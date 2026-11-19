@@ -1,5 +1,5 @@
 ---
-repos: [owner/repo]   # TODO: every repo this page covers
+repos: [<owner>/<repo>]   # TODO: every repo this page covers
 ---
 # Example service (template, replace with a real project)
 

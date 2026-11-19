@@ -79,7 +79,7 @@ notes_list_repo() {
         if (tolower(item) == target) found = 1
       }
       function check_inline(text,   n, parts, i) {
-        gsub(/[][]/, "", text)
+        gsub(/\[|\]/, "", text)
         n = split(text, parts, ",")
         for (i = 1; i <= n; i++) check(parts[i])
       }

@@ -39,6 +39,14 @@ write_personal() {
   [ "${#lines[@]}" -eq 1 ]
 }
 
+@test "a multi-item inline list with CRLF in a personal subfolder suppresses the nudge" {
+  mkdir -p "$PERSONAL/work"
+  printf -- '---\r\nrepos: [o/a, "o/proj", o/b]\r\n---\r\n# X\r\n' > "$PERSONAL/work/x.md"
+  run_hook
+  [ "$status" -eq 0 ]
+  [[ "$output" != *"onboard-repo"* ]]
+}
+
 @test "a block list repos entry suppresses the nudge" {
   write_personal x.md $'---\nrepos:\n  - o/other\n  - "o/proj"\n---\n# X'
   run_hook
