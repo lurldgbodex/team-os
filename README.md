@@ -15,6 +15,7 @@ One install gives every engineer the same Claude Code toolkit: shared subagents,
 | Skill | `/team-os:implement-ticket 42` | Issue → plan → code → tests → draft PR that closes it → self-review |
 | Skill | `/team-os:review-pr 57` | PR + linked issue → findings by severity → optional posted review |
 | Skill | `/team-os:setup` | Post-install check and one-minute tour. Safe to re-run |
+| Skill | `/team-os:onboard-repo [path]` | Reads a repo and drafts a knowledge page and index row for your approval; saves to your personal notes |
 | Skill | `/team-os:stats [weeks]` | Guard blocks by rule and week from your local audit log, plus your PRs that close an issue |
 | Hook | session start | Prints `Team OS · <version>` and warns when your checkout is behind |
 | Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access. Each block is logged locally to `~/.claude/team-os/audit.jsonl` (no command text) |
@@ -51,6 +52,7 @@ Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh 
 - `/team-os:create-ticket add FX rate caching` drafts a GitHub issue and creates it once you approve.
 - `/team-os:implement-ticket 42` takes issue #42 to a draft pull request that closes it.
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
+- `/team-os:onboard-repo` drafts a knowledge page for a repo, from what is actually in it.
 - `/team-os:stats` shows how often the guard blocked something and how many of your PRs closed an issue.
 - Try asking Claude to read `.env`: the guard blocks it and says why.
 - Tickets are GitHub Issues. The GitHub connector is optional (connect it at claude.ai/settings/connectors, then run `/mcp`); without it the skills use the `gh` CLI.
@@ -87,7 +89,7 @@ install.sh / uninstall.sh / update.sh   thin entry points
 plugins/team-os/
   .claude-plugin/plugin.json            plugin manifest
   agents/                               librarian, coder, reviewer
-  skills/                               create-ticket, implement-ticket, review-pr, setup, stats
+  skills/                               create-ticket, implement-ticket, review-pr, setup, stats, onboard-repo
   hooks/                                hooks.json, session-start.sh, guard.sh, statusline.sh
   knowledge/                            shared knowledge bundle (index.md first)
   policy/                               rules/*.json and behaviour/*.md, one file per rule
