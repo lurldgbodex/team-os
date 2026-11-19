@@ -15,7 +15,8 @@ Read this file first. Open only the documents that match the question.
 ## How to add knowledge
 
 1. Create one markdown file per project or topic in this folder.
-2. Add one row to the table above saying **when** to read it.
-3. Open a pull request. Merging to the main branch delivers it to everyone on their next `git pull`.
+2. Start a project page with frontmatter `repos: [owner/repo, ...]` listing every repo it covers, so the librarian and session start can match it to the repo you are in.
+3. Add one row to the table above saying **when** to read it.
+4. Open a pull request. Merging to the main branch delivers it to everyone on their next `git pull`.
 
 Keep facts short and checkable. Say who owns each fact and when it was last verified.

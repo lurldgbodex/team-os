@@ -1,3 +1,6 @@
+---
+repos: [owner/repo]   # TODO: every repo this page covers
+---
 # Example service (template, replace with a real project)
 
 > This page shows the shape of a good project page. Every line marked TODO should be
