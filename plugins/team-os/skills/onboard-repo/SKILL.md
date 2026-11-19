@@ -18,6 +18,7 @@ This skill reads the repo and drafts a page. **It writes nothing before the engi
 ## 2. Check for an existing page
 
 - Read `${CLAUDE_PLUGIN_ROOT}/knowledge/index.md` and list `~/.claude/team-os/personal/projects/` (if it exists).
+- Search the shared knowledge folder and the personal `projects/` folder for the repo name and `owner/repo`, not only file names: one page can cover several repos (for example `asa.md` for `asa-api` and `asa-mobile`).
 - If a page for this repo already exists, show it and ask whether to continue before drafting another.
 
 ## 3. Read the repo (read-only)
@@ -30,7 +31,7 @@ This skill reads the repo and drafts a page. **It writes nothing before the engi
 
 ## 4. Collect the commands
 
-- Record a run, test or lint command only if it exists in the repo as a Makefile target, a package script or a CI step.
+- Record a run, test or lint command only if it exists in the repo as a Makefile target, a package script, a CI step or a script file in the repo (for example `scripts/sync-docs.sh`).
 - Name the source next to each command, for example `make ci` (Makefile).
 - If you find none, say so and mark it unverified. Never invent commands, owners or URLs.
 
