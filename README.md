@@ -17,7 +17,7 @@ One install gives every engineer the same Claude Code toolkit: shared subagents,
 | Skill | `/team-os:setup` | Post-install check and one-minute tour. Safe to re-run |
 | Skill | `/team-os:onboard-repo [path]` | Reads a repo and drafts a knowledge page and index row for your approval; saves to your personal notes |
 | Skill | `/team-os:stats [weeks]` | Guard blocks by rule and week from your local audit log, plus your PRs that close an issue |
-| Hook | session start | Prints `Team OS · <version>` and warns when your checkout is behind |
+| Hook | session start | Prints `Team OS · <version>`, warns when your checkout is behind and suggests `/team-os:onboard-repo` when no knowledge page lists the repo you are in |
 | Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access. Each block is logged locally to `~/.claude/team-os/audit.jsonl` (no command text) |
 | Status line | | Model · context % · optional 5h/7d usage · version. Yellow at 70%, red at 90% |
 | Policy | `plugins/team-os/policy/` | One small file per rule, merged into your own Claude settings, reversible |
@@ -76,7 +76,7 @@ Takes out the plugin, marketplace, rules, hook and status line (restoring yours 
 ## Contributing
 
 - Add or change a rule: one small file under `plugins/team-os/policy/` (JSON with `why` and `owner`, or one Markdown file per behaviour rule).
-- Add knowledge: a file in `plugins/team-os/knowledge/` plus one row in `index.md`.
+- Add knowledge: a file in `plugins/team-os/knowledge/` (project pages start with `repos: [owner/repo]` frontmatter) plus one row in `index.md`.
 - Before opening a PR: `bin/test.sh` (hygiene check + bats tests). CI (`.github/workflows/ci.yml`) runs the same checks plus shellcheck on every pull request and push to main.
 - Architecture and design decisions: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - Walking the team through it: [docs/DEMO.md](docs/DEMO.md).
