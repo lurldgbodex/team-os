@@ -8,10 +8,11 @@ Team OS is a Claude Code plugin distributed from a git repository.
 - **Plugin** (`plugins/team-os/`): agents, skills, hooks, policy and this knowledge bundle.
 - **Agents**: `librarian` (reads knowledge, Haiku) `coder` (implements scoped changes, Sonnet) and `reviewer` (read-only code review, Sonnet).
 - **Skills**: `/team-os:create-ticket` (idea to GitHub issue), `/team-os:implement-ticket <issue>` (issue to draft PR), `/team-os:review-pr <PR>` (code review), `/team-os:setup` (post-install check), `/team-os:stats [weeks]` (guard blocks and PRs that close an issue) and `/team-os:onboard-repo [path]` (drafts a project knowledge page for a repo).
-- **Hooks**: SessionStart prints the version and warns when behind; PreToolUse blocks dangerous actions.
+- **Hooks**: SessionStart prints the version, warns when behind and suggests `/team-os:onboard-repo` when no knowledge page lists the repo you are in (no network calls); PreToolUse blocks dangerous actions.
 - **Status line**: model, context %, optional usage, version.
 - **Policy**: one small file per rule, merged into the engineer's own Claude settings, reversible.
 - **Audit log**: `~/.claude/team-os/audit.jsonl`, one JSON line per guard block (time, rule, tool, repo, version; never the command or file). Stays on the machine; `/team-os:stats` summarises it.
+- **Knowledge pages**: a project page starts with `repos: [owner/repo]` frontmatter so the librarian and session start can match it to a repo.
 - **Personal folder**: `~/.claude/team-os/personal/`, private notes, never pushed to the shared repo.
 
 ## Updates
