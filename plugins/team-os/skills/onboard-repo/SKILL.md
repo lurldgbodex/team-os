@@ -18,8 +18,12 @@ This skill reads the repo and drafts a page. **It writes nothing before the engi
 ## 2. Check for an existing page
 
 - Read `${CLAUDE_PLUGIN_ROOT}/knowledge/index.md` and list `~/.claude/team-os/personal/projects/` (if it exists).
-- Search the shared knowledge folder and the personal `projects/` folder for the repo name and `owner/repo`, not only file names: one page can cover several repos (for example `asa.md` for `asa-api` and `asa-mobile`).
-- If a page for this repo already exists, show it and ask whether to continue before drafting another.
+- First look for a note whose `repos:` frontmatter lists this `owner/repo` (inline or block list, any file name), in the shared knowledge folder and in `~/.claude/team-os/personal/`.
+- If there is none, fall back to searching the shared knowledge folder and the personal `projects/` folder for the repo name and `owner/repo`, not only file names: one page can cover several repos (for example `asa.md` for `asa-api` and `asa-mobile`).
+- If a note for this repo exists, switch to **refresh mode** instead of asking whether to draft another: tell the engineer which note you found, re-read the repo (steps 3 and 4), and update that note in place. Never create a second note for the same repo.
+  - If the note covers several repos, change only the parts about this repo.
+  - If the note has no `repos:` frontmatter, add it.
+  - If the match is in the shared knowledge folder, never write to it: draft the changes and say they need a pull request (or `/team-os:contribute` if that skill exists).
 
 ## 3. Read the repo (read-only)
 
@@ -42,6 +46,10 @@ This skill reads the repo and drafts a page. **It writes nothing before the engi
 Use the shape of `${CLAUDE_PLUGIN_ROOT}/knowledge/example-service.md`:
 
 ```
+---
+repos: [<owner/repo>]
+---
+
 # <repo name>
 
 ## What it is
@@ -57,6 +65,7 @@ Use the shape of `${CLAUDE_PLUGIN_ROOT}/knowledge/example-service.md`:
 - Mark anything you could not confirm from the repo as "unverified".
 - Leave Owners and on-call blank unless the repo names them (for example in `CODEOWNERS`).
 - In Conventions, point to the repo's own `CLAUDE.md` or `AGENTS.md` instead of copying its rules. Copies drift. Say which `standards-<stack>.md` applies.
+- The `repos:` frontmatter lists every repo the page covers, so the librarian and session start can find it.
 - In Last verified, write "<today's date>, drafted by onboard-repo from <the files you read>; not yet checked by an engineer". The engineer replaces the last part when they check it.
 - Never copy secrets, tokens, passwords, internal hostnames or personal data from the repo into the page.
 
@@ -71,11 +80,18 @@ One row for `index.md`:
 ## 7. Approve, then write
 
 - Show the full page and the row. Wait for the engineer to approve or edit them. **Do not write anything before approval.**
-- On approval, write `~/.claude/team-os/personal/projects/<repo>.md` (create `projects/` if missing). Put the index row at the bottom under a "Proposed index row" heading, so it can be added to the shared index later.
-- If that file already exists, never overwrite it silently: show the difference and ask whether to overwrite it or use another name.
+- In refresh mode, show the diff against the existing note instead of the full page, and update its Last verified line. Wait for approval, then edit that note in place. Do not change its file name and do not write a second note.
+- Otherwise, on approval, write `~/.claude/team-os/personal/projects/<repo>.md` (create `projects/` if missing). Put the index row at the bottom under a "Proposed index row" heading, so it can be added to the shared index later.
+- If that file already exists, never overwrite it silently: show the difference. In refresh mode, apply the approved diff to it. Otherwise ask whether to overwrite it or use another name, but never when another note already lists this repo in `repos:`.
 - Never write to the shared knowledge folder.
 - If the engineer wants the page shared: use `/team-os:contribute` if that skill exists. Otherwise say it needs a pull request to Team OS (a file in `knowledge/` plus the index row), and stop.
 
 ## 8. Report
 
-Name the file you wrote. List everything left "unverified" or blank, so the engineer can fill it in.
+Name the file you wrote (or updated). List everything left "unverified" or blank, so the engineer can fill it in.
+
+Then add a gap report, listing only the gaps that apply:
+
+- No `CLAUDE.md` or `AGENTS.md` in the repo. Offer the built-in `/init` as a separate pull request in that repo. Never write it from this skill.
+- No `standards-<stack>.md` for the detected stack, so only `standards.md` applies.
+- Only GitHub's default labels. Check with `gh label list`; the defaults are bug, documentation, duplicate, enhancement, good first issue, help wanted, invalid, question and wontfix.
