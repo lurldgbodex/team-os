@@ -53,7 +53,7 @@ Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh 
 - `/team-os:implement-ticket 42` takes issue #42 to a draft pull request that closes it.
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
 - `/team-os:onboard-repo` drafts a knowledge page for a repo, from what is actually in it.
-- `/team-os:stats` shows how often the guard blocked something and how many of your PRs closed an issue.
+- `/team-os:stats` shows how often the guard blocked something and how many of your PRs close an issue.
 - Try asking Claude to read `.env`: the guard blocks it and says why.
 - Tickets are GitHub Issues. The GitHub connector is optional (connect it at claude.ai/settings/connectors, then run `/mcp`); without it the skills use the `gh` CLI.
 
