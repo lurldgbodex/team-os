@@ -26,6 +26,7 @@ Then give the one-minute tour:
 - `/team-os:create-ticket <description>` drafts a GitHub issue and creates it once you approve.
 - `/team-os:implement-ticket 42` takes issue #42 to a draft PR that closes it.
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
+- `/team-os:onboard-repo` drafts a knowledge page for the repo you are in, from what is actually in it, and saves it to your personal notes once you approve. Session start suggests it when no knowledge page lists the repo you are in.
 - Dangerous actions (reading `.env`, force pushes, piped installers) are blocked with a reason.
 - The status line shows model, context use and Team OS version.
 - To update, run `git pull` in the Team OS folder. Rules and the plugin refresh automatically.
