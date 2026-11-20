@@ -27,6 +27,7 @@ Then give the one-minute tour:
 - `/team-os:implement-ticket 42` takes issue #42 to a draft PR that closes it.
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
 - `/team-os:onboard-repo` drafts a knowledge page for the repo you are in, from what is actually in it, and saves it to your personal notes once you approve. Session start suggests it when no knowledge page lists the repo you are in.
+- `/team-os:stats` shows how often the guard blocked something and how many of your PRs closed an issue.
 - Dangerous actions (reading `.env`, force pushes, piped installers) are blocked with a reason.
 - The status line shows model, context use and Team OS version.
 - To update, run `git pull` in the Team OS folder. Rules and the plugin refresh automatically.
