@@ -494,3 +494,150 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}Never git push origin +main.${NL}Nor git push -fu origin main.${NL}EOF"
   [ -z "$output" ]
 }
+
+@test "guard blocks rm -rf /" {
+  run guard_bash "rm -rf /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm -fr ~" {
+  run guard_bash "rm -fr ~"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm -rf \$HOME" {
+  run guard_bash 'rm -rf $HOME'
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm -rf /*" {
+  run guard_bash "rm -rf /*"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks a recursive rm of home without -f" {
+  run guard_bash "rm -r ~"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm with separate recursive and force flags" {
+  run guard_bash "rm -R -f /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm with long flags on ~/" {
+  run guard_bash "rm --recursive --force ~/"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks sudo rm -rf /" {
+  run guard_bash "sudo rm -rf /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks /bin/rm with a quoted \$HOME" {
+  run guard_bash '/bin/rm -rf "$HOME"'
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm with a single-quoted ~" {
+  run guard_bash "rm -rf '~'"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm -rf \${HOME}/*" {
+  run guard_bash 'rm -rf ${HOME}/*'
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks a recursive rm of home after another command" {
+  run guard_bash "cd /tmp && rm -rf ~"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks a recursive rm inside a subshell or substitution" {
+  run guard_bash "(rm -rf ~)"
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash 'x=$(rm -rf /)'
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash 'echo `rm -r $HOME`'
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash "(cd /tmp; rm -rf ./build)"
+  [ -z "$output" ]
+}
+
+@test "guard allows rm of named directories and non-recursive rm" {
+  run guard_bash "rm -rf ./build"
+  [ -z "$output" ]
+  run guard_bash "rm -rf /tmp/x"
+  [ -z "$output" ]
+  run guard_bash "rm -rf ~/proj/build"
+  [ -z "$output" ]
+  run guard_bash 'rm -rf $HOME/.cache/foo'
+  [ -z "$output" ]
+  run guard_bash "rm -f ./a.txt"
+  [ -z "$output" ]
+  run guard_bash "rmdir /tmp/x"
+  [ -z "$output" ]
+}
+
+@test "guard blocks kubectl with a prod context" {
+  run guard_bash "kubectl --context prod-eu get pods"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks kubectl with --context=production" {
+  run guard_bash "kubectl get pods --context=production"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks helm with a prod kube-context" {
+  run guard_bash "helm upgrade x ./c --kube-context eu-prod"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks KUBECONTEXT=prod before kubectl" {
+  run guard_bash "KUBECONTEXT=prod kubectl get pods"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks HELM_KUBECONTEXT=PROD case-insensitively" {
+  run guard_bash "HELM_KUBECONTEXT=PROD helm list"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks a quoted prod context" {
+  run guard_bash 'kubectl --context "gke_p_europe-west1_prod" get ns'
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks a context named prod1" {
+  run guard_bash "kubectl --context prod1 get pods"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard blocks an exported prod context followed by kubectl" {
+  run guard_bash "export KUBECONTEXT=prod; kubectl get pods"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard allows kubectl and helm on other contexts" {
+  run guard_bash "kubectl --context staging get pods"
+  [ -z "$output" ]
+  run guard_bash "kubectl --context products-dev get pods"
+  [ -z "$output" ]
+  run guard_bash "kubectl get pods"
+  [ -z "$output" ]
+  run guard_bash "echo --context prod"
+  [ -z "$output" ]
+}
+
+@test "guard allows a heredoc body that mentions rm of home and a prod context" {
+  run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}Never run rm -rf / or rm -rf ~.${NL}Nor kubectl --context prod-eu get pods.${NL}EOF"
+  [ -z "$output" ]
+}
+
+@test "guard still checks a command after the heredoc terminator for rm" {
+  run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}body${NL}EOF${NL}rm -rf ~"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}

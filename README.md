@@ -18,7 +18,7 @@ One install gives every engineer the same Claude Code toolkit: shared subagents,
 | Skill | `/team-os:onboard-repo [path]` | Reads a repo and drafts a knowledge page and index row for your approval; saves to your personal notes |
 | Skill | `/team-os:stats [weeks]` | Guard blocks by rule and week from your local audit log, plus your PRs that close an issue |
 | Hook | session start | Prints `Team OS · <version>`, warns when your checkout is behind and suggests `/team-os:onboard-repo` when no knowledge page lists the repo you are in |
-| Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access. Each block is logged locally to `~/.claude/team-os/audit.jsonl` (no command text) |
+| Hook | guard | Blocks force pushes, piped installers, `.env` reads, local deploys, prod DB access, recursive `rm` of `/` or home, `kubectl`/`helm` on prod contexts. Each block is logged locally to `~/.claude/team-os/audit.jsonl` (no command text) |
 | Status line | | Model · context % · optional 5h/7d usage · version. Yellow at 70%, red at 90% |
 | Policy | `plugins/team-os/policy/` | One small file per rule, merged into your own Claude settings, reversible |
 | Knowledge | `plugins/team-os/knowledge/` | Shared facts, `index.md` first |

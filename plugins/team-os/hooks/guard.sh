@@ -128,8 +128,8 @@ case "$tool" in
   Bash)
     cmd="$(printf '%s' "$input" | jq -r '.tool_input.command // empty')"
 
-    # Rules 1, 2 and 4 look at syntax, so they skip a PR, issue or commit body
-    # (see heredoc_head). Rules 3 and 5 always see the raw command.
+    # Rules 1, 2, 4, 6 and 7 look at syntax, so they skip a PR, issue or
+    # commit body (see heredoc_head). Rules 3 and 5 always see the raw command.
     syn="$cmd"
     head="$(heredoc_head "$cmd")" && syn="$head"
 
@@ -210,6 +210,45 @@ case "$tool" in
       || printf '%s' "$cp_scan" | grep -Eq "${cp_word}([^|;&]*[[:space:]/=,:\"'])?${env_name}[[:space:],:\"']+[^[:space:]|;&]" \
       || printf '%s' "$cp_scan" | grep -Eq "${cp_word}[^|;&]*${key_name}[[:space:]\"']+[^[:space:]|;&]"; then
       deny "no-secret-files" "reading .env or key files is blocked. Ask the engineer to share only the non-secret values you need."
+    fi
+
+    # 6. A recursive rm of "/" or the home directory cannot be undone. Each
+    #    segment (split at ";", "&", "|" and newlines) is checked on its own,
+    #    with quotes removed so a quoted target counts. It is blocked when it
+    #    has all of: an rm word (optionally with a path, so "sudo rm" and
+    #    "/bin/rm" count, while "rmdir" and "farm" do not), a recursive flag
+    #    as its own token (-r, -R, -rf, -fr ... or --recursive; -f alone is
+    #    not recursive), and a dangerous target as its own token: "/", "/*",
+    #    or "~", $HOME, ${HOME} bare or followed by "/" or "/*". It is
+    #    blocked with or without -f, because a recursive rm of these has no
+    #    safe use. A named directory such as "~/proj/build" or "/tmp/x" is
+    #    fine. A subshell or substitution counts too: "(", "$(" or a backtick
+    #    may open the rm, and ")" or a backtick may end a token.
+    rm_word='(^|[[:space:](`])(/[^[:space:]]*/)?rm[[:space:]]'
+    rm_recursive='[[:space:]](-[A-Za-z]*[rR][A-Za-z]*|--recursive)([[:space:])`]|$)'
+    rm_target='[[:space:]](/\*?|(~|\$HOME|\$\{HOME\})(/\*?)?)([[:space:])`]|$)'
+    while IFS= read -r seg; do
+      seg="${seg//[\"\']/}"
+      if printf '%s' "$seg" | grep -Eq "$rm_word" \
+        && printf '%s' "$seg" | grep -Eq "$rm_recursive" \
+        && printf '%s' "$seg" | grep -Eq "$rm_target"; then
+        deny "no-destructive-rm" "recursive rm on / or the home directory is blocked. Name the exact directory you mean to delete."
+      fi
+    done < <(printf '%s\n' "$syn" | tr ';&|' '\n\n\n')
+
+    # 7. Production clusters. kubectl or helm (as a whole word) together with
+    #    a context that names prod or production: --context / --kube-context
+    #    (with "=" or a space), or KUBECONTEXT= (this also matches
+    #    HELM_KUBECONTEXT=). The value must contain "prod" or "production" as
+    #    a word delimited by non-letters ("eu-prod", "prod1"), so
+    #    "products-dev" is fine. The whole command is checked, not each
+    #    segment, so "export KUBECONTEXT=prod; kubectl get pods" is caught.
+    #    Limit: the guard cannot see kubectl's current context, so a bare
+    #    "kubectl get pods" after "kubectl config use-context prod" is not
+    #    caught.
+    if printf '%s' "$syn" | grep -Eq '(^|[^A-Za-z0-9_-])(kubectl|helm)([[:space:]]|$)' \
+      && printf '%s' "$syn" | grep -Eiq '((--context|--kube-context)(=|[[:space:]]+)|KUBECONTEXT=)["'\'']?([^[:space:]"'\'']*[^A-Za-z[:space:]"'\''])?prod(uction)?([^A-Za-z]|$)'; then
+      deny "no-prod-cluster" "kubectl and helm against a production context are blocked. Use the approved deploy pipeline or a staging context."
     fi
     ;;
 

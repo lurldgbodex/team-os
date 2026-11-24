@@ -10,7 +10,7 @@ Run these checks and report a short pass/fail list. Fix nothing without asking.
 1. **Version**: run `git -C "${CLAUDE_PLUGIN_ROOT}/../.." rev-parse --short HEAD` and report it.
 2. **Tools**: check `git`, `gh` (and `gh auth status`), and `jq` are installed.
 3. **Connectors**: run `claude mcp list` and report whether GitHub is connected. If it is missing, tell the engineer to open claude.ai/settings/connectors, connect it, then run `/mcp`. The connector is optional: without it the skills fall back to the `gh` CLI. Do not report Atlassian (Jira) as a problem; the team tracks work in GitHub Issues.
-4. **Rules**: read `~/.claude/settings.json` and confirm the Team OS deny/ask rules are present (`jq '.permissions.deny' ~/.claude/settings.json`). These are only the rules from `${CLAUDE_PLUGIN_ROOT}/policy/rules/*.json`; compare against those files. The hard blocks (force pushes, piped installers, production databases, local deploys, secret files) live in the guard hook, not here, so do not report them as missing from settings. Step 6 checks them.
+4. **Rules**: read `~/.claude/settings.json` and confirm the Team OS deny/ask rules are present (`jq '.permissions.deny' ~/.claude/settings.json`). These are only the rules from `${CLAUDE_PLUGIN_ROOT}/policy/rules/*.json`; compare against those files. The hard blocks (force pushes, piped installers, production databases, local deploys, secret files, destructive rm, production clusters) live in the guard hook, not here, so do not report them as missing from settings. Step 6 checks them.
 5. **Personal folder**: confirm `~/.claude/team-os/personal/` exists and is a git repo.
 6. **Guard hook**: confirm the hard blocks are active.
    - The plugin is enabled: `jq '(.enabledPlugins // {}) | with_entries(select(.key | startswith("team-os@")))' ~/.claude/settings.json` shows a `team-os@…` key set to `true`. An empty `{}` or `false` means it is not enabled here. The plugin can also be enabled in a project's settings, so if it is not enabled here, run this from the project root before reporting a failure. It skips files that do not exist: `for f in .claude/settings.json .claude/settings.local.json; do [ -f "$f" ] && jq -c --arg f "$f" '(.enabledPlugins // {}) | with_entries(select(.key | startswith("team-os@"))) | {($f): .}' "$f"; done; true`. The plugin is enabled if any file shows a `team-os@…` key set to `true`.
@@ -28,6 +28,7 @@ Then give the one-minute tour:
 - `/team-os:review-pr 57` reviews pull request #57 and can post the findings as a review.
 - `/team-os:onboard-repo` drafts a knowledge page for the repo you are in, from what is actually in it, and saves it to your personal notes once you approve. Session start suggests it when no knowledge page lists the repo you are in.
 - `/team-os:stats` shows how often the guard blocked something and how many of your PRs close an issue.
-- Dangerous actions (reading `.env`, force pushes, piped installers) are blocked with a reason.
+- Dangerous actions (reading `.env`, force pushes, piped installers, `rm -rf ~`, `kubectl` on a prod context) are blocked with a reason.
+- `gh pr merge` asks for your confirmation first.
 - The status line shows model, context use and Team OS version.
 - To update, run `git pull` in the Team OS folder. Rules and the plugin refresh automatically.
