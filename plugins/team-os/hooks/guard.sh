@@ -218,15 +218,16 @@ case "$tool" in
     #    has all of: an rm word (optionally with a path, so "sudo rm" and
     #    "/bin/rm" count, while "rmdir" and "farm" do not), a recursive flag
     #    as its own token (-r, -R, -rf, -fr ... or --recursive; -f alone is
-    #    not recursive), and a dangerous target as its own token: "/", "/*",
-    #    or "~", $HOME, ${HOME} bare or followed by "/" or "/*". It is
+    #    not recursive), and a dangerous target as its own token: "/", "~",
+    #    $HOME or ${HOME}, bare or followed only by "/", "." and "*" (so
+    #    "/*", "//", "/.", "~/." and "$HOME/.." count, "~/.cache" does not). It is
     #    blocked with or without -f, because a recursive rm of these has no
     #    safe use. A named directory such as "~/proj/build" or "/tmp/x" is
     #    fine. A subshell or substitution counts too: "(", "$(" or a backtick
     #    may open the rm, and ")" or a backtick may end a token.
     rm_word='(^|[[:space:](`])(/[^[:space:]]*/)?rm[[:space:]]'
     rm_recursive='[[:space:]](-[A-Za-z]*[rR][A-Za-z]*|--recursive)([[:space:])`]|$)'
-    rm_target='[[:space:]](/\*?|(~|\$HOME|\$\{HOME\})(/\*?)?)([[:space:])`]|$)'
+    rm_target='[[:space:]](/[/.*]*|(~|\$HOME|\$\{HOME\})(/[/.*]*)?)([[:space:])`]|$)'
     while IFS= read -r seg; do
       seg="${seg//[\"\']/}"
       if printf '%s' "$seg" | grep -Eq "$rm_word" \

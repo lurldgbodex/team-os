@@ -566,6 +566,26 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
 }
 
+@test "guard blocks root and home spelled with extra dots or slashes" {
+  run guard_bash "rm -rf ~/."
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash 'rm -rf $HOME/..'
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash "rm -rf /."
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash "rm -rf //"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard allows rm of dot directories inside home" {
+  run guard_bash "rm -rf ~/.cache"
+  [ -z "$output" ]
+  run guard_bash 'rm -rf $HOME/.config/app'
+  [ -z "$output" ]
+  run guard_bash "rm -rf ./.next"
+  [ -z "$output" ]
+}
+
 @test "guard allows rm of named directories and non-recursive rm" {
   run guard_bash "rm -rf ./build"
   [ -z "$output" ]
