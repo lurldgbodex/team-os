@@ -9,6 +9,17 @@ load_config
 # Rules and behaviour block
 "$REPO_DIR/bin/apply-policy.sh" --remove || warn "could not remove rules"
 
+# Enforced rules: a custom managed dir is ours to write, the default needs admin rights
+if [ -f "$MANAGED_FILE" ]; then
+  if managed_writable || [ -n "${TEAM_OS_MANAGED_DIR:-}" ]; then
+    "$REPO_DIR/bin/apply-policy.sh" --enforced --remove || warn "could not remove the enforced rules"
+  else
+    say "Removing $MANAGED_FILE needs admin rights. Running: sudo $REPO_DIR/bin/apply-policy.sh --enforced --remove"
+    { have sudo && sudo "$REPO_DIR/bin/apply-policy.sh" --enforced --remove; } || \
+      warn "could not remove the enforced rules. Run: sudo $REPO_DIR/bin/apply-policy.sh --enforced --remove"
+  fi
+fi
+
 # Status line: only touch it if we installed it
 if [ "${STATUSLINE_INSTALLED:-0}" = "1" ] && [ -f "$SETTINGS" ]; then
   ours="$REPO_DIR/plugins/team-os/hooks/statusline.sh"

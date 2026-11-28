@@ -4,6 +4,7 @@
 #   ./install.sh                  interactive
 #   ./install.sh --yes            accept all defaults
 #   ./install.sh --status-line team|keep
+#   ./install.sh --enforced       also write the rules as managed settings (needs sudo)
 #
 # What it does, in order:
 #   1. checks prerequisites (claude, git, gh, jq; gitleaks optional)
@@ -12,7 +13,9 @@
 #   4. adds a post-merge git hook so `git pull` refreshes everything
 #   5. creates your private personal/ notes folder (own git repo, secret-scan hook)
 #   6. applies the team deny/ask rules and behaviour rules (reversible)
-#   7. installs the status line (unless you keep your own)
+#   7. with --enforced: writes the rules and plugin enablement to managed settings
+#      that engineers cannot override (one file, removed by ./uninstall.sh)
+#   8. installs the status line (unless you keep your own)
 #
 # Everything it touches is appended to ~/.claude/team-os/install.log.
 # ./uninstall.sh reverses all of it and keeps your personal notes.
@@ -23,11 +26,13 @@ set -euo pipefail
 
 ASSUME_YES=0
 STATUS_LINE_CHOICE=""
+ENFORCED=0
 while [ $# -gt 0 ]; do
   case "$1" in
     --yes|-y) ASSUME_YES=1 ;;
+    --enforced) ENFORCED=1 ;;
     --status-line) shift; STATUS_LINE_CHOICE="${1:-}" ;;
-    -h|--help) sed -n '2,19p' "$0"; exit 0 ;;
+    -h|--help) sed -n '2,21p' "$0"; exit 0 ;;
     *) die "unknown option: $1" ;;
   esac
   shift
@@ -124,7 +129,20 @@ fi
 # --- 6. policy --------------------------------------------------------------------
 "$REPO_DIR/bin/apply-policy.sh"
 
-# --- 7. status line ----------------------------------------------------------------
+# --- 7. enforced mode (optional) ---------------------------------------------------
+if [ "$ENFORCED" = "1" ]; then
+  # A custom managed dir is ours to write: let apply-policy report if it cannot.
+  if managed_writable || [ -n "${TEAM_OS_MANAGED_DIR:-}" ]; then
+    "$REPO_DIR/bin/apply-policy.sh" --enforced
+  else
+    say "Enforced mode writes $MANAGED_FILE, which needs admin rights. Running: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
+    have sudo || die "sudo not found. Ask an admin to run: $REPO_DIR/bin/apply-policy.sh --enforced"
+    sudo "$REPO_DIR/bin/apply-policy.sh" --enforced || die "enforced mode failed. Run later: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
+  fi
+  ok "enforced rules active in $MANAGED_FILE"
+fi
+
+# --- 8. status line ----------------------------------------------------------------
 [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
 existing="$(jq -r '.statusLine.command // empty' "$SETTINGS")"
 ours="$REPO_DIR/plugins/team-os/hooks/statusline.sh"

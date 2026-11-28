@@ -18,5 +18,15 @@ fi
 
 "$REPO_DIR/bin/apply-policy.sh" || warn "policy apply failed"
 
+# Enforced mode is active when our managed file exists. Never sudo here: this
+# can run from a git hook, so just say what to run.
+if [ -f "$MANAGED_FILE" ] && ! "$REPO_DIR/bin/apply-policy.sh" --enforced --check; then
+  if managed_writable; then
+    "$REPO_DIR/bin/apply-policy.sh" --enforced || warn "enforced rules update failed"
+  else
+    warn "enforced rules in $MANAGED_FILE are out of date. Run: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
+  fi
+fi
+
 version="$(git -C "$REPO_DIR" rev-parse --short HEAD 2>/dev/null || echo unknown)"
 ok "Team OS refreshed at ${version}. New Claude Code sessions will use it."

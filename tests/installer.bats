@@ -77,3 +77,35 @@ EOF
   run jq -r '.permissions.deny | index("Bash(rm -rf /:*)")' "$CLAUDE_HOME/settings.json"
   [ "$output" != "null" ]
 }
+
+@test "install --enforced also writes the managed file" {
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/managed"
+  run "$WORK_REPO/install.sh" --yes --enforced
+  [ "$status" -eq 0 ]
+  [ -f "$TEAM_OS_MANAGED_DIR/managed-settings.d/50-team-os.json" ]
+  [ -f "$CLAUDE_HOME/team-os/config.env" ]
+  run jq -r '.permissions.deny | length' "$CLAUDE_HOME/settings.json"
+  [ "$output" -ge 1 ]
+}
+
+@test "uninstall removes the managed file and keeps other drop-ins" {
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/managed"
+  mkdir -p "$TEAM_OS_MANAGED_DIR/managed-settings.d"
+  echo '{}' > "$TEAM_OS_MANAGED_DIR/managed-settings.d/10-it.json"
+  "$WORK_REPO/install.sh" --yes --enforced >/dev/null
+  run "$WORK_REPO/uninstall.sh"
+  [ "$status" -eq 0 ]
+  [ ! -e "$TEAM_OS_MANAGED_DIR/managed-settings.d/50-team-os.json" ]
+  [ -f "$TEAM_OS_MANAGED_DIR/managed-settings.d/10-it.json" ]
+}
+
+@test "refresh rewrites a stale enforced file" {
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/managed"
+  "$WORK_REPO/install.sh" --yes --enforced >/dev/null
+  echo '{"id":"deny-new-thing","type":"deny","rule":"Bash(frobnicate:*)","why":"never","owner":"platform"}' \
+    > "$WORK_REPO/plugins/team-os/policy/rules/deny-new-thing.json"
+  run "$WORK_REPO/bin/refresh.sh"
+  [ "$status" -eq 0 ]
+  run jq -r '.permissions.deny | index("Bash(frobnicate:*)")' "$TEAM_OS_MANAGED_DIR/managed-settings.d/50-team-os.json"
+  [ "$output" != "null" ]
+}
