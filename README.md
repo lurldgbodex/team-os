@@ -46,6 +46,10 @@ Manual fallback, if the installer cannot call the `claude` CLI: inside Claude Co
 
 Non-interactive: `./install.sh --yes`. Keep your own status line: `./install.sh --status-line keep`.
 
+### Enforced mode
+
+`./install.sh --enforced` also writes the rules and plugin enablement to managed settings that engineers cannot override. It needs admin rights, so it asks for `sudo` for that one step. `./uninstall.sh` removes it. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
 ## After installing
 
 - Ask anything about a project. The `librarian` reads the shared knowledge first.
