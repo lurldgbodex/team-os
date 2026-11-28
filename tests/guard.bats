@@ -686,6 +686,39 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
 }
 
+@test "guard blocks switching the current context to prod" {
+  run guard_bash "kubectl config use-context prod-eu"
+  [[ "$output" == *"no-prod-cluster"* ]]
+  run guard_bash "kubectl config set current-context production"
+  [[ "$output" == *"no-prod-cluster"* ]]
+  run guard_bash "kubectx prod"
+  [[ "$output" == *"no-prod-cluster"* ]]
+  run guard_bash "kubectl config use prod"
+  [[ "$output" == *"no-prod-cluster"* ]]
+  run guard_bash "kubectl --kubeconfig x config use-context prod"
+  [[ "$output" == *"no-prod-cluster"* ]]
+  run guard_bash 'kubectl config use-context "gke_p_eu_prod"'
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard allows switching the current context to other contexts" {
+  run guard_bash "kubectl config use-context staging"
+  [ -z "$output" ]
+  run guard_bash "kubectx staging"
+  [ -z "$output" ]
+  run guard_bash "kubectl config get-contexts"
+  [ -z "$output" ]
+  run guard_bash "kubectx -d prod"
+  [ -z "$output" ]
+  run guard_bash "kubectl config use-context products-dev"
+  [ -z "$output" ]
+}
+
+@test "guard allows a heredoc body that mentions switching to a prod context" {
+  run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}never run kubectl config use-context prod${NL}EOF"
+  [ -z "$output" ]
+}
+
 @test "guard allows a heredoc body that mentions rm of home and a prod context" {
   run guard_bash "gh pr create --title \"x\" --body-file - <<'EOF'${NL}Never run rm -rf / or rm -rf ~.${NL}Nor kubectl --context prod-eu get pods.${NL}EOF"
   [ -z "$output" ]

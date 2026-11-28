@@ -237,18 +237,20 @@ case "$tool" in
       fi
     done < <(printf '%s\n' "$syn" | tr ';&|' '\n\n\n')
 
-    # 7. Production clusters. kubectl or helm (as a whole word) together with
-    #    a context that names prod or production: --context / --kube-context
-    #    (with "=" or a space), or KUBECONTEXT= (this also matches
-    #    HELM_KUBECONTEXT=). The value must contain "prod" or "production" as
-    #    a word delimited by non-letters ("eu-prod", "prod1"), so
-    #    "products-dev" is fine. The whole command is checked, not each
+    # 7. Production clusters. kubectl, kubectx or helm (as a whole word)
+    #    together with a context that names prod or production: --context /
+    #    --kube-context (with "=" or a space), KUBECONTEXT= (this also matches
+    #    HELM_KUBECONTEXT=), or a command that makes it the current context:
+    #    "config use-context", "config use" (kubectl's alias), "config set
+    #    current-context" or "kubectx". The value must contain "prod" or
+    #    "production" as a word delimited by non-letters ("eu-prod", "prod1"),
+    #    so "products-dev" is fine. The whole command is checked, not each
     #    segment, so "export KUBECONTEXT=prod; kubectl get pods" is caught.
-    #    Limit: the guard cannot see kubectl's current context, so a bare
-    #    "kubectl get pods" after "kubectl config use-context prod" is not
-    #    caught.
-    if printf '%s' "$syn" | grep -Eq '(^|[^A-Za-z0-9_-])(kubectl|helm)([[:space:]]|$)' \
-      && printf '%s' "$syn" | grep -Eiq '((--context|--kube-context)(=|[[:space:]]+)|KUBECONTEXT=)["'\'']?([^[:space:]"'\'']*[^A-Za-z[:space:]"'\''])?prod(uction)?([^A-Za-z]|$)'; then
+    #    Limit: the guard cannot see a context that was already current before
+    #    the command (set outside the session or in an earlier shell), nor a
+    #    kubeconfig file (--kubeconfig / KUBECONFIG) that points at prod.
+    if printf '%s' "$syn" | grep -Eq '(^|[^A-Za-z0-9_-])(kubectl|kubectx|helm)([[:space:]]|$)' \
+      && printf '%s' "$syn" | grep -Eiq '((--context|--kube-context)(=|[[:space:]]+)|KUBECONTEXT=|config[[:space:]]+(use(-context)?|set[[:space:]]+current-context)[[:space:]]+|kubectx[[:space:]]+)["'\'']?([^[:space:]"'\'']*[^A-Za-z[:space:]"'\''])?prod(uction)?([^A-Za-z]|$)'; then
       deny "no-prod-cluster" "kubectl and helm against a production context are blocked. Use the approved deploy pipeline or a staging context."
     fi
     ;;
