@@ -50,6 +50,16 @@ managed_writable() {
   [ -w "$d" ]
 }
 
+# Print the copy-pasteable sudo command for apply-policy.sh. $@ = its arguments.
+# sudo resets the environment, so a custom managed dir has to be named in the command.
+enforced_sudo_cmd() {
+  local cmd="sudo"
+  if [ -n "${TEAM_OS_MANAGED_DIR:-}" ]; then
+    cmd="$cmd $(printf 'TEAM_OS_MANAGED_DIR=%q' "$TEAM_OS_MANAGED_DIR")"
+  fi
+  printf '%s %q %s\n' "$cmd" "$REPO_DIR/bin/apply-policy.sh" "$*"
+}
+
 # Run a claude CLI command unless skipped. Failures are reported, not fatal:
 # the plugin commands differ slightly between Claude Code versions.
 run_claude() {

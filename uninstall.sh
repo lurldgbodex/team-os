@@ -14,9 +14,9 @@ if [ -f "$MANAGED_FILE" ]; then
   if managed_writable || [ -n "${TEAM_OS_MANAGED_DIR:-}" ]; then
     "$REPO_DIR/bin/apply-policy.sh" --enforced --remove || warn "could not remove the enforced rules"
   else
-    say "Removing $MANAGED_FILE needs admin rights. Running: sudo $REPO_DIR/bin/apply-policy.sh --enforced --remove"
+    say "Removing $MANAGED_FILE needs admin rights. Running: $(enforced_sudo_cmd --enforced --remove)"
     { have sudo && sudo "$REPO_DIR/bin/apply-policy.sh" --enforced --remove; } || \
-      warn "could not remove the enforced rules. Run: sudo $REPO_DIR/bin/apply-policy.sh --enforced --remove"
+      warn "could not remove the enforced rules. Run: $(enforced_sudo_cmd --enforced --remove)"
   fi
 fi
 

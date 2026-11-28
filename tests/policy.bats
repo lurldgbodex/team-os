@@ -166,7 +166,7 @@ managed_file() { echo "$TEAM_OS_MANAGED_DIR/managed-settings.d/50-team-os.json";
   run apply --enforced
   chmod 755 "$d"
   [ "$status" -ne 0 ]
-  [[ "$output" == *"sudo $WORK_REPO/bin/apply-policy.sh --enforced"* ]]
+  [[ "$output" == *"sudo TEAM_OS_MANAGED_DIR=$TEAM_OS_MANAGED_DIR $WORK_REPO/bin/apply-policy.sh --enforced"* ]]
   [ -z "$(ls -A "$d")" ]
 }
 
@@ -182,4 +182,39 @@ managed_file() { echo "$TEAM_OS_MANAGED_DIR/managed-settings.d/50-team-os.json";
     > "$WORK_REPO/plugins/team-os/policy/rules/deny-x.json"
   run apply --enforced --check
   [ "$status" -eq 1 ]
+}
+
+@test "enforced creates readable dirs under a strict umask" {
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/managed"
+  ( umask 077; apply --enforced )
+  run ls -ld "$TEAM_OS_MANAGED_DIR"
+  [[ "$output" == "drwxr-xr-x"* ]]
+  run ls -ld "$TEAM_OS_MANAGED_DIR/managed-settings.d"
+  [[ "$output" == "drwxr-xr-x"* ]]
+  run ls -l "$(managed_file)"
+  [[ "$output" == "-rw-r--r--"* ]]
+}
+
+@test "enforced under a read-only parent explains sudo and creates nothing" {
+  [ "$(id -u)" -eq 0 ] && skip "root can write anywhere"
+  mkdir -p "$SANDBOX/ro"
+  chmod 555 "$SANDBOX/ro"
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/ro/a/b"
+  run apply --enforced
+  chmod 755 "$SANDBOX/ro"
+  [ "$status" -ne 0 ]
+  [[ "$output" == *"sudo"* ]]
+  [ -z "$(ls -A "$SANDBOX/ro")" ]
+}
+
+@test "enforced works with a space in the managed dir" {
+  export TEAM_OS_MANAGED_DIR="$SANDBOX/App Support/ClaudeCode"
+  run apply --enforced
+  [ "$status" -eq 0 ]
+  [ -f "$(managed_file)" ]
+  run apply --enforced --check
+  [ "$status" -eq 0 ]
+  run apply --enforced --remove
+  [ "$status" -eq 0 ]
+  [ ! -e "$(managed_file)" ]
 }

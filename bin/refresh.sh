@@ -24,7 +24,7 @@ if [ -f "$MANAGED_FILE" ] && ! "$REPO_DIR/bin/apply-policy.sh" --enforced --chec
   if managed_writable; then
     "$REPO_DIR/bin/apply-policy.sh" --enforced || warn "enforced rules update failed"
   else
-    warn "enforced rules in $MANAGED_FILE are out of date. Run: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
+    warn "enforced rules in $MANAGED_FILE are out of date. Run: $(enforced_sudo_cmd --enforced)"
   fi
 fi
 

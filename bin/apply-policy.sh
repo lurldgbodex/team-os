@@ -85,7 +85,7 @@ if [ "${mode#enforced}" != "$mode" ]; then
       }'
   }
   need_admin() {
-    echo "apply-policy: no write access to $MANAGED_DROPIN_DIR. Enforced mode needs admin rights. Run: sudo $REPO_DIR/bin/apply-policy.sh $*" >&2
+    echo "apply-policy: no write access to $MANAGED_DROPIN_DIR. Enforced mode needs admin rights. Run: $(enforced_sudo_cmd "$@")" >&2
     exit 1
   }
 
@@ -103,12 +103,15 @@ if [ "${mode#enforced}" != "$mode" ]; then
 
   managed_writable || need_admin --enforced
   content="$(enforced_json)"
-  mkdir -p "$MANAGED_DROPIN_DIR"
+  # Dirs we create must be readable by every user, whatever umask sudo kept.
+  (umask 022 && mkdir -p "$MANAGED_DROPIN_DIR")
   # Hidden temp name: Claude Code ignores dotfiles, so it never reads a half-written file.
   tmp="$(mktemp "$MANAGED_DROPIN_DIR/.team-os.XXXXXX")"
+  trap 'rm -f "$tmp"' EXIT
   printf '%s\n' "$content" > "$tmp"
   chmod 644 "$tmp"   # mktemp makes it 600; every user's sessions must be able to read it
   mv "$tmp" "$MANAGED_FILE"
+  trap - EXIT
   echo "Team OS enforced rules written to $MANAGED_FILE: $(jq '.permissions.deny | length' <<<"$content") deny, $(jq '.permissions.ask | length' <<<"$content") ask."
   exit 0
 fi
