@@ -712,6 +712,15 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
   run guard_bash "kubectl config use-context products-dev"
   [ -z "$output" ]
+  run guard_bash "kubectx"
+  [ -z "$output" ]
+  run guard_bash "kubectx -"
+  [ -z "$output" ]
+}
+
+@test "guard only counts config use and kubectx when they start a word" {
+  run guard_bash "helm upgrade app ./chart --set app.config use prod"
+  [ -z "$output" ]
 }
 
 @test "guard allows a heredoc body that mentions switching to a prod context" {

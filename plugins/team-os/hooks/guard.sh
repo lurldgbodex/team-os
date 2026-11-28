@@ -242,7 +242,8 @@ case "$tool" in
     #    --kube-context (with "=" or a space), KUBECONTEXT= (this also matches
     #    HELM_KUBECONTEXT=), or a command that makes it the current context:
     #    "config use-context", "config use" (kubectl's alias), "config set
-    #    current-context" or "kubectx". The value must contain "prod" or
+    #    current-context" or "kubectx", each starting a word (so
+    #    "app.config use prod" does not count). The value must contain "prod" or
     #    "production" as a word delimited by non-letters ("eu-prod", "prod1"),
     #    so "products-dev" is fine. The whole command is checked, not each
     #    segment, so "export KUBECONTEXT=prod; kubectl get pods" is caught.
@@ -250,7 +251,7 @@ case "$tool" in
     #    the command (set outside the session or in an earlier shell), nor a
     #    kubeconfig file (--kubeconfig / KUBECONFIG) that points at prod.
     if printf '%s' "$syn" | grep -Eq '(^|[^A-Za-z0-9_-])(kubectl|kubectx|helm)([[:space:]]|$)' \
-      && printf '%s' "$syn" | grep -Eiq '((--context|--kube-context)(=|[[:space:]]+)|KUBECONTEXT=|config[[:space:]]+(use(-context)?|set[[:space:]]+current-context)[[:space:]]+|kubectx[[:space:]]+)["'\'']?([^[:space:]"'\'']*[^A-Za-z[:space:]"'\''])?prod(uction)?([^A-Za-z]|$)'; then
+      && printf '%s' "$syn" | grep -Eiq '((--context|--kube-context)(=|[[:space:]]+)|KUBECONTEXT=|(^|[^A-Za-z0-9_.-])(config[[:space:]]+(use(-context)?|set[[:space:]]+current-context)|kubectx)[[:space:]]+)["'\'']?([^[:space:]"'\'']*[^A-Za-z[:space:]"'\''])?prod(uction)?([^A-Za-z]|$)'; then
       deny "no-prod-cluster" "kubectl and helm against a production context are blocked. Use the approved deploy pipeline or a staging context."
     fi
     ;;
