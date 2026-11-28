@@ -4,25 +4,30 @@
 #   apply-policy.sh            apply (idempotent)
 #   apply-policy.sh --remove   take out everything Team OS added
 #   apply-policy.sh --list     print the current rules as a table
+#   apply-policy.sh --enforced [--remove|--check]
+#                              write, delete or verify the managed-settings file
 #
 # Environment overrides (used by tests):
-#   CLAUDE_HOME   default ~/.claude
+#   CLAUDE_HOME            default ~/.claude
+#   TEAM_OS_MANAGED_DIR    managed settings dir, default /etc/claude-code
+#                          (macOS: /Library/Application Support/ClaudeCode)
 #
 # What it touches:
 #   $CLAUDE_HOME/settings.json            permissions.deny / permissions.ask
 #   $CLAUDE_HOME/CLAUDE.md                one marked block of behaviour rules
 #   $CLAUDE_HOME/team-os/managed-rules.json   what we added (so removal is exact)
+#
+# --enforced touches only <managed dir>/managed-settings.d/50-team-os.json (deny/ask
+# rules, marketplace, enabled plugin). It may run as root, so it never writes
+# under $CLAUDE_HOME.
 
 set -euo pipefail
 
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# shellcheck source=lib.sh
+. "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 POLICY_DIR="$REPO_DIR/plugins/team-os/policy"
 
-CLAUDE_HOME="${CLAUDE_HOME:-$HOME/.claude}"
-SETTINGS="$CLAUDE_HOME/settings.json"
 CLAUDE_MD="$CLAUDE_HOME/CLAUDE.md"
-STATE_DIR="$CLAUDE_HOME/team-os"
 MANAGED="$STATE_DIR/managed-rules.json"
 
 BEGIN_MARK="<!-- team-os:begin (managed by Team OS, do not edit; run /team-os:rules or uninstall.sh) -->"
@@ -30,13 +35,27 @@ END_MARK="<!-- team-os:end -->"
 
 command -v jq >/dev/null 2>&1 || { echo "apply-policy: jq is required" >&2; exit 1; }
 
+usage() { echo "usage: $0 [--remove|--list|--enforced [--remove|--check]]" >&2; exit 2; }
+
 mode="apply"
 case "${1:-}" in
   --remove) mode="remove" ;;
   --list)   mode="list" ;;
+  --enforced)
+    case "${2:-}" in
+      "")       mode="enforced" ;;
+      --remove) mode="enforced-remove" ;;
+      --check)  mode="enforced-check" ;;
+      *) usage ;;
+    esac ;;
   "")       ;;
-  *) echo "usage: $0 [--remove|--list]" >&2; exit 2 ;;
+  *) usage ;;
 esac
+
+rules_of() {
+  # $1 = deny|ask. Prints the rule strings from policy/rules/*.json as a JSON array.
+  for f in "$POLICY_DIR"/rules/*.json; do jq -r --arg t "$1" 'select(.type==$t) | .rule' "$f"; done | jq -R . | jq -s .
+}
 
 # --- list ---------------------------------------------------------------
 if [ "$mode" = "list" ]; then
@@ -50,6 +69,47 @@ if [ "$mode" = "list" ]; then
   for f in "$POLICY_DIR"/behaviour/*.md; do
     printf '  - %s: %s' "$(basename "$f" .md)" "$(cat "$f")"
   done
+  exit 0
+fi
+
+# --- enforced -------------------------------------------------------------
+# Nothing below this block runs in enforced mode: it must not create files in
+# a home directory, because it may run as root.
+if [ "${mode#enforced}" != "$mode" ]; then
+  enforced_json() {
+    jq -n --argjson d "$(rules_of deny)" --argjson a "$(rules_of ask)" \
+      --arg repo "$REPO_DIR" --arg mp "$MARKETPLACE_NAME" --arg pl "$PLUGIN_NAME" '{
+        permissions: {deny: $d, ask: $a},
+        extraKnownMarketplaces: {($mp): {source: {source: "directory", path: $repo}}},
+        enabledPlugins: {"\($pl)@\($mp)": true}
+      }'
+  }
+  need_admin() {
+    echo "apply-policy: no write access to $MANAGED_DROPIN_DIR. Enforced mode needs admin rights. Run: sudo $REPO_DIR/bin/apply-policy.sh $*" >&2
+    exit 1
+  }
+
+  case "$mode" in
+    enforced-check)
+      if [ -f "$MANAGED_FILE" ] && [ "$(jq -S . "$MANAGED_FILE" 2>/dev/null)" = "$(enforced_json | jq -S .)" ]; then exit 0; fi
+      exit 1 ;;
+    enforced-remove)
+      [ -f "$MANAGED_FILE" ] || { echo "No enforced rules to remove ($MANAGED_FILE does not exist)."; exit 0; }
+      managed_writable || need_admin --enforced --remove
+      rm -f "$MANAGED_FILE"
+      echo "Team OS enforced rules removed from $MANAGED_FILE."
+      exit 0 ;;
+  esac
+
+  managed_writable || need_admin --enforced
+  content="$(enforced_json)"
+  mkdir -p "$MANAGED_DROPIN_DIR"
+  # Hidden temp name: Claude Code ignores dotfiles, so it never reads a half-written file.
+  tmp="$(mktemp "$MANAGED_DROPIN_DIR/.team-os.XXXXXX")"
+  printf '%s\n' "$content" > "$tmp"
+  chmod 644 "$tmp"   # mktemp makes it 600; every user's sessions must be able to read it
+  mv "$tmp" "$MANAGED_FILE"
+  echo "Team OS enforced rules written to $MANAGED_FILE: $(jq '.permissions.deny | length' <<<"$content") deny, $(jq '.permissions.ask | length' <<<"$content") ask."
   exit 0
 fi
 
@@ -108,8 +168,8 @@ fi
 # are never in $MANAGED, so they are never removed.
 remove_managed_permissions
 
-deny_json="$(for f in "$POLICY_DIR"/rules/*.json; do jq -r 'select(.type=="deny") | .rule' "$f"; done | jq -R . | jq -s .)"
-ask_json="$(for f in "$POLICY_DIR"/rules/*.json; do jq -r 'select(.type=="ask") | .rule' "$f"; done | jq -R . | jq -s .)"
+deny_json="$(rules_of deny)"
+ask_json="$(rules_of ask)"
 
 # Record only rules that were not already present before us, so removal never
 # takes out something the engineer configured themselves.

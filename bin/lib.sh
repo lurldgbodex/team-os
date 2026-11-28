@@ -14,6 +14,17 @@ PERSONAL_DIR="$STATE_DIR/personal"
 SETTINGS="$CLAUDE_HOME/settings.json"
 LOG_FILE="$STATE_DIR/install.log"
 
+# Enforced mode: one Team OS-owned drop-in in Claude Code's managed settings.
+# Claude Code reads managed-settings.d/*.json in alphabetical order, so our file
+# sits beside any other admin policy instead of replacing it.
+case "$(uname -s)" in
+  Darwin) MANAGED_DIR_DEFAULT="/Library/Application Support/ClaudeCode" ;;
+  *)      MANAGED_DIR_DEFAULT="/etc/claude-code" ;;
+esac
+MANAGED_DIR="${TEAM_OS_MANAGED_DIR:-$MANAGED_DIR_DEFAULT}"
+MANAGED_DROPIN_DIR="$MANAGED_DIR/managed-settings.d"
+MANAGED_FILE="$MANAGED_DROPIN_DIR/50-team-os.json"
+
 # Set TEAM_OS_SKIP_CLAUDE=1 to skip every call to the claude CLI (used by tests).
 SKIP_CLAUDE="${TEAM_OS_SKIP_CLAUDE:-0}"
 
@@ -30,6 +41,14 @@ warn() { printf '%s!%s %s\n' "$C_YELLOW" "$C_OFF" "$*" >&2; log "warn: $*"; }
 die()  { printf '%s✗%s %s\n' "$C_RED" "$C_OFF" "$*" >&2; log "error: $*"; exit 1; }
 
 have() { command -v "$1" >/dev/null 2>&1; }
+
+# True if we can create or replace MANAGED_FILE without admin rights: the
+# drop-in dir if it exists, else the nearest existing parent (we mkdir -p it).
+managed_writable() {
+  local d="$MANAGED_DROPIN_DIR"
+  while [ ! -d "$d" ]; do d="$(dirname "$d")"; done
+  [ -w "$d" ]
+}
 
 # Run a claude CLI command unless skipped. Failures are reported, not fatal:
 # the plugin commands differ slightly between Claude Code versions.
