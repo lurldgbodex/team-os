@@ -1,0 +1,7 @@
+{
+  "id": "ask-gh-pr-merge",
+  "type": "ask",
+  "rule": "Bash(gh pr merge:*)",
+  "why": "Merging lands work on the shared branch. The team standards say never merge unless the engineer asks for that exact action.",
+  "owner": "platform"
+}

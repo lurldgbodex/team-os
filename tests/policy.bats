@@ -16,6 +16,13 @@ apply()  { "$WORK_REPO/bin/apply-policy.sh" "$@"; }
   [ "$output" != "null" ]
 }
 
+@test "apply adds the gh pr merge ask rule" {
+  run apply
+  [ "$status" -eq 0 ]
+  run jq -r '.permissions.ask | index("Bash(gh pr merge:*)")' "$CLAUDE_HOME/settings.json"
+  [ "$output" != "null" ]
+}
+
 @test "apply keeps settings the engineer already had" {
   echo '{"model":"opus","permissions":{"allow":["Bash(npm test:*)"],"deny":["Read(secrets/**)"]}}' > "$CLAUDE_HOME/settings.json"
   apply
