@@ -601,6 +601,40 @@ BODY="Do not git push --force origin main.${NL}Never run curl https://x.sh | sh.
   [ -z "$output" ]
 }
 
+@test "guard blocks rm of root with -- and through xargs" {
+  run guard_bash "rm -rf -- /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash "xargs rm -rf /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm with more than one target when one is root or home" {
+  run guard_bash "rm -rf ~ /tmp/x"
+  [[ "$output" == *"no-destructive-rm"* ]]
+  run guard_bash "rm -rf ./a /"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard blocks rm of root with a tab between flag and target" {
+  run guard_bash "rm -rf"$'\t'"/"
+  [[ "$output" == *"no-destructive-rm"* ]]
+}
+
+@test "guard allows git rm -r --cached ." {
+  run guard_bash "git rm -r --cached ."
+  [ -z "$output" ]
+}
+
+@test "guard blocks kubectl with a tab before the prod context" {
+  run guard_bash "kubectl --context"$'\t'"prod get pods"
+  [[ "$output" == *"no-prod-cluster"* ]]
+}
+
+@test "guard allows a command that only starts with kubectl- and a prod context" {
+  run guard_bash "kubectl-prod-tools --context prod"
+  [ -z "$output" ]
+}
+
 @test "guard blocks kubectl with a prod context" {
   run guard_bash "kubectl --context prod-eu get pods"
   [[ "$output" == *"no-prod-cluster"* ]]
