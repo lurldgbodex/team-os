@@ -130,16 +130,27 @@ fi
 "$REPO_DIR/bin/apply-policy.sh"
 
 # --- 7. enforced mode (optional) ---------------------------------------------------
+# A failure here must not skip the status line: remember it and report at the end.
+ENFORCED_FAILED=0
 if [ "$ENFORCED" = "1" ]; then
+  enforced_hint="Enforced mode is NOT active. Run: $(enforced_sudo_cmd --enforced)"
   # A custom managed dir is ours to write: let apply-policy report if it cannot.
   if managed_writable || [ -n "${TEAM_OS_MANAGED_DIR:-}" ]; then
-    "$REPO_DIR/bin/apply-policy.sh" --enforced
+    "$REPO_DIR/bin/apply-policy.sh" --enforced || ENFORCED_FAILED=1
   else
-    say "Enforced mode writes $MANAGED_FILE, which needs admin rights. Running: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
-    have sudo || die "sudo not found. Ask an admin to run: $REPO_DIR/bin/apply-policy.sh --enforced"
-    sudo "$REPO_DIR/bin/apply-policy.sh" --enforced || die "enforced mode failed. Run later: sudo $REPO_DIR/bin/apply-policy.sh --enforced"
+    say "Enforced mode writes $MANAGED_FILE, which needs admin rights. Running: $(enforced_sudo_cmd --enforced)"
+    if have sudo; then
+      sudo "$REPO_DIR/bin/apply-policy.sh" --enforced || ENFORCED_FAILED=1
+    else
+      warn "sudo not found. Ask an admin to run: $(enforced_sudo_cmd --enforced)"
+      ENFORCED_FAILED=1
+    fi
   fi
-  ok "enforced rules active in $MANAGED_FILE"
+  if [ "$ENFORCED_FAILED" = "1" ]; then
+    warn "$enforced_hint"
+  else
+    ok "enforced rules active in $MANAGED_FILE"
+  fi
 fi
 
 # --- 8. status line ----------------------------------------------------------------
@@ -171,6 +182,11 @@ else
 fi
 
 echo
+if [ "$ENFORCED_FAILED" = "1" ]; then
+  warn "Team OS installed for your user, but enforced mode is NOT active. Run: $(enforced_sudo_cmd --enforced)"
+  say "Next: run the command above, then exit Claude Code and start it again."
+  exit 1
+fi
 ok "Team OS installed."
 say "Next: exit Claude Code and start it again so hooks and the status line load."
 say "Then try: /team-os:setup"
